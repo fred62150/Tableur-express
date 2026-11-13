@@ -575,5 +575,33 @@
   });
   $('resDrop').addEventListener('click', () => { clearPlan(); aiMsg(''); });
 
+
+  /* ---------- Mise à jour de l'application ---------- */
+  const APP_VERSION = '1.6';
+  if (/[?&]r=/.test(location.search) && history.replaceState) history.replaceState(null, '', location.pathname);
+
+  async function hardRefresh() {
+    if (state.table && state.history.length && !window.confirm('Le fichier chargé et vos modifications seront perdus. Rafraîchir quand même ?')) return;
+    try {
+      if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+      if (navigator.serviceWorker) await Promise.all((await navigator.serviceWorker.getRegistrations()).map((r) => r.unregister()));
+    } catch (e) { /* on recharge quand même */ }
+    location.replace(location.pathname + '?r=' + Date.now());
+  }
+  $('refreshBtn').addEventListener('click', hardRefresh);
+  $('updateBtn').addEventListener('click', hardRefresh);
+
+  async function checkUpdate() {
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const v = await r.json();
+      if (v && v.version && v.version !== APP_VERSION) $('updateBanner').classList.remove('hidden');
+    } catch (e) { /* hors ligne : on ne dit rien */ }
+  }
+  $('ver').textContent = APP_VERSION;
+  checkUpdate();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
   renderSettings();
 })();

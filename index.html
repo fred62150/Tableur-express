@@ -8,15 +8,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1.5">
+<link rel="stylesheet" href="style.css?v=1.6">
 <script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
 <div class="app">
 <header class="top">
   <h1>Tableur Express</h1>
-  <button id="themeBtn" class="iconbtn" title="Changer de thème" aria-label="Changer de thème">◐</button>
+  <div class="row" style="margin:0">
+    <button id="refreshBtn" class="iconbtn" title="Rafraîchir l'application" aria-label="Rafraîchir l'application">↻</button>
+    <button id="themeBtn" class="iconbtn" title="Changer de thème" aria-label="Changer de thème">◐</button>
+  </div>
 </header>
+<div id="updateBanner" class="card hidden" role="status" style="border-color: var(--accent)">
+  <div class="row" style="margin:0"><span>Une nouvelle version est disponible.</span><button class="primary" id="updateBtn">Mettre à jour</button></div>
+</div>
 <p class="sub">Nettoyez vos fichiers .xlsx et .csv. L'original n'est jamais modifié ; le fichier reste dans votre navigateur.</p>
 
 <main>
@@ -161,13 +167,13 @@
   </div>
 </main>
 
-<footer>Version 1.5 · vos données restent dans votre navigateur</footer>
+<footer>Version <span id="ver">1.6</span> · vos données restent dans votre navigateur</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="ops.js?v=1.5"></script>
-<script src="sandbox.js?v=1.5"></script>
-<script src="ai.js?v=1.5"></script>
-<script src="app.js?v=1.5"></script>
+<script src="ops.js?v=1.6"></script>
+<script src="sandbox.js?v=1.6"></script>
+<script src="ai.js?v=1.6"></script>
+<script src="app.js?v=1.6"></script>
 </body>
 </html>

@@ -3,6 +3,11 @@
 Application web pour nettoyer des fichiers tableur (.xlsx, .xls, .csv) directement dans le navigateur.
 L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 
+## Version 1.6
+
+- Bouton ↻ « Rafraîchir l'application » (vide le cache et recharge) et bannière « Nouvelle version disponible » (vérifie `version.json`)
+- À chaque publication : mettre à jour `version.json`, `APP_VERSION` dans `app.js` et les `?v=` dans `index.html`
+
 ## Version 1.5
 
 - Tableau croisé dynamique guidé (listes de champs, somme/moyenne/nombre/min/max, totaux), sans IA

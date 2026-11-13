@@ -23,11 +23,14 @@ const AI = (() => {
   }
 
   const RULES = [
-    'Tu transformes un tableau avec du JavaScript. Réponds UNIQUEMENT par un objet JSON : {"explication":"1 à 2 phrases en français","code":"function transform(table){ ... return {headers:[...], rows:[[...]]}; }"}',
+    'Tu transformes un tableau avec du JavaScript. Réponds en deux parties, rien d\'autre :',
+    '1) une ligne « Explication : » en français (1 à 2 phrases) ;',
+    '2) le code dans UN SEUL bloc ```js contenant : function transform(table){ ... return {headers:[...], rows:[[...]]}; }',
     'Règles du code : table.headers = noms des colonnes ; table.rows = lignes (tableaux de cellules, mêmes indices que headers). Une cellule est un texte, un nombre ou un objet Date.',
     'Pas de réseau, pas de DOM, pas de bibliothèque. Ne modifie pas table en place : renvoie un nouvel objet {headers, rows}. Conserve les colonnes non concernées. Toute colonne ajoutée porte un nom dans headers.',
-    'Les nombres au format français peuvent être des textes ("1 250,50") : convertis-les si besoin. Pour un tableau croisé ou un regroupement, renvoie directement le tableau de résultats.',
-    'Si la demande est impossible, renvoie "code":"" et explique pourquoi dans "explication".',
+    'Les nombres au format français peuvent être des textes ("1 250,50") : convertis-les si besoin.',
+    'Tableau croisé : première colonne = champ placé en lignes, puis une colonne par valeur distincte du champ placé en colonnes (triées), puis une colonne Total ; somme (ou comptage) par case, 0 si vide. Renvoie directement ce tableau de résultats.',
+    'Si la demande est impossible, n\'écris que l\'explication, sans bloc de code.',
   ].join('\n');
 
   const header = (table, sampleN) =>
@@ -44,20 +47,29 @@ const AI = (() => {
   }
 
   function extractJSON(txt) {
-    const s = String(txt).trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
-    const a = s.indexOf('{');
-    const b = s.lastIndexOf('}');
-    if (a < 0 || b <= a) return null;
-    try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }
+    const s = String(txt);
+    const i = s.indexOf('{');
+    const j = s.lastIndexOf('}');
+    if (i < 0 || j <= i) return null;
+    const cand = s.slice(i, j + 1);
+    try { return JSON.parse(cand); } catch (e) { /* on tente une réparation */ }
+    try { return JSON.parse(cand.replace(/\r?\n/g, '\\n').replace(/\t/g, '\\t')); } catch (e) { return null; }
   }
 
   function parse(txt) {
-    const s = String(txt);
+    const s = String(txt).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const fence = s.match(/```[a-zA-Z]*\s*\n?([\s\S]*?)```/);
+    if (fence && /transform/.test(fence[1])) {
+      const expl = s.replace(fence[0], '').replace(/^\s*\**Explication\s*:?\**\s*/i, '').trim();
+      return { explication: expl.slice(0, 400), code: fence[1].trim() };
+    }
     const o = extractJSON(s);
     if (o && typeof o.code === 'string') return { explication: String(o.explication || ''), code: o.code.trim() };
-    const m = s.match(/```(?:js|javascript)?\s*([\s\S]*?)```/);
-    if (m && /transform/.test(m[1])) return { explication: s.replace(m[0], '').trim().slice(0, 300), code: m[1].trim() };
-    return { explication: s.trim().slice(0, 300), code: '' };
+    if (/function\s+transform\s*\(/.test(s)) {
+      const k = s.indexOf('function transform');
+      return { explication: s.slice(0, k).trim().slice(0, 400), code: s.slice(k).replace(/```\s*$/, '').trim() };
+    }
+    return { explication: s.slice(0, 400), code: '' };
   }
 
   /* Rend le résultat du code conforme : en-têtes uniques et non vides, lignes à la bonne largeur. */

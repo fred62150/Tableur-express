@@ -3,6 +3,10 @@
 Application web pour nettoyer des fichiers tableur (.xlsx, .xls, .csv) directement dans le navigateur.
 L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 
+## Version 1.4
+
+- Lecture des réponses de l'IA plus tolérante (bloc de code ou JSON), consigne dédiée aux tableaux croisés, réponse brute visible en cas d'échec
+
 ## Version 1.3
 
 - Pilotage par prompt réécrit : l'IA écrit une vraie transformation (tri, filtres, colonnes calculées, regroupements, tableaux croisés…)

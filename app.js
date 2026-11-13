@@ -450,20 +450,31 @@
     const t = state.table;
     $('aiGo').disabled = true;
     $('resRetry').disabled = true;
-    aiMsg(`Demande envoyée à ${prov.name}…`);
+    aiMsg(`Demande envoyée à ${prov.name}… (jusqu'à une minute pour un tableau croisé)`);
+    $('rawBox').classList.add('hidden');
     try {
       const prompt = retry
         ? AI.buildRetryPrompt(t, request, retry.code, retry.feedback, sampleN)
         : AI.buildPrompt(t, request, sampleN);
-      let r = AI.parse(await callAI(prov, model, prompt));
-      if (!r.code) { clearPlan(); aiMsg(r.explication || 'Le modèle n\'a pas pu faire cette transformation.', true); return; }
+      const reply = await callAI(prov, model, prompt);
+      $('rawText').textContent = reply || '(réponse vide)';
+      $('rawBox').classList.add('hidden');
+      let r = AI.parse(reply);
+      if (!r.code) {
+        clearPlan();
+        aiMsg(r.explication || 'Le modèle n\'a pas renvoyé de transformation exploitable.', true);
+        $('rawBox').classList.remove('hidden');
+        return;
+      }
       let result;
       try {
         result = await Sandbox.run(r.code, t);
       } catch (e) {
         aiMsg('Le code proposé a échoué (' + e.message + '). Correction automatique…');
-        r = AI.parse(await callAI(prov, model, AI.buildFixPrompt(t, request, r.code, e.message, sampleN)));
-        if (!r.code) throw new Error(r.explication || 'Correction impossible.');
+        const reply2 = await callAI(prov, model, AI.buildFixPrompt(t, request, r.code, e.message, sampleN));
+        $('rawText').textContent = reply2 || '(réponse vide)';
+        r = AI.parse(reply2);
+        if (!r.code) { $('rawBox').classList.remove('hidden'); throw new Error('Correction impossible : ' + (r.explication || 'réponse vide.')); }
         result = await Sandbox.run(r.code, t);
       }
       showResult(request, r, AI.normalizeResult(result));

@@ -91,4 +91,11 @@ assert.deepStrictEqual(nr.headers, ['a', 'Colonne 2', 'a (2)']);
 assert.deepStrictEqual(nr.rows, [[1, '', ''], [1, 2, 3]]);
 assert.ok(AI.buildPrompt(at, 'trie', 0).includes('Demande : trie'));
 assert.ok(AI.buildFixPrompt(at, 'trie', 'CODE', 'ERR', 0).includes('Erreur : ERR'));
+const p3 = AI.parse('Explication : tableau croisé.\n```javascript\nfunction transform(t){\n return t;\n}\n```');
+assert.strictEqual(p3.explication, 'tableau croisé.');
+assert.ok(p3.code.includes('return t;'));
+const p4 = AI.parse('{"explication":"ok","code":"function transform(t){\n  return t;\n}"}');   // JSON avec vrais retours à la ligne
+assert.ok(p4.code.includes('return t;'));
+assert.ok(AI.parse('<think>blabla</think>Explication : x\n```js\nfunction transform(t){return t}\n```').code);
+assert.strictEqual(AI.parse('Explication : impossible.').code, '');
 console.log('Tests IA : OK');

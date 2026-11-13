@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1.3">
+<link rel="stylesheet" href="style.css?v=1.4">
 <script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
@@ -95,6 +95,7 @@
         <label class="inline"><input type="checkbox" id="aiFull" checked> modèle complet (conseillé pour les transformations)</label>
       </div>
       <p class="msg" id="aiMsg"></p>
+      <details id="rawBox" class="hidden"><summary class="small muted">Voir la réponse brute de l'IA</summary><pre id="rawText" class="code"></pre></details>
       <div id="resBox" class="hidden">
         <p id="resExplain"></p>
         <p class="note" id="resSummary"></p>
@@ -140,13 +141,13 @@
   </div>
 </main>
 
-<footer>Version 1.3 · vos données restent dans votre navigateur</footer>
+<footer>Version 1.4 · vos données restent dans votre navigateur</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="ops.js?v=1.3"></script>
-<script src="sandbox.js?v=1.3"></script>
-<script src="ai.js?v=1.3"></script>
-<script src="app.js?v=1.3"></script>
+<script src="ops.js?v=1.4"></script>
+<script src="sandbox.js?v=1.4"></script>
+<script src="ai.js?v=1.4"></script>
+<script src="app.js?v=1.4"></script>
 </body>
 </html>

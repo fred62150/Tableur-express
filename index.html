@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableur Express</title>
+<meta name="description" content="Nettoyez et préparez vos fichiers tableur dans votre navigateur, sans toucher à l'original.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Tableur Express</h1>
+  <p>Nettoyez vos fichiers .xlsx et .csv. L'original n'est jamais modifié et rien ne quitte votre navigateur.</p>
+</header>
+
+<main>
+  <section class="card" id="importCard">
+    <h2>1. Importer un fichier</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".xlsx,.xlsm,.xls,.csv,.txt">
+      <strong>Déposez un fichier ici</strong>
+      <span>ou touchez pour le choisir · .xlsx, .xls, .csv</span>
+    </label>
+    <div id="fileInfo" class="row hidden">
+      <span id="fileName" class="pill"></span>
+      <label>Feuille <select id="sheetSel"></select></label>
+      <label>Ligne d'en-tête <input type="number" id="headerRow" min="1" value="1" class="num"></label>
+    </div>
+    <p id="msg" class="msg"></p>
+  </section>
+
+  <div id="work" class="hidden">
+    <section class="card">
+      <h2>2. Aperçu</h2>
+      <div class="stats" id="stats"></div>
+      <div class="muted small">Colonnes concernées par les opérations ci-dessous (aucune sélection = toutes) :</div>
+      <div id="chips" class="chips"></div>
+      <div class="tablewrap"><table id="preview"></table></div>
+      <p class="muted small" id="previewNote"></p>
+    </section>
+
+    <section class="card">
+      <h2>3. Nettoyer</h2>
+      <button class="primary" id="quick">Nettoyage rapide : accents, espaces, lignes vides, doublons</button>
+      <div class="ops">
+        <div class="op"><div><b>Accents cassés</b><span>Répare « FranÃ§ois » en « François ».</span></div><button data-op="accents">Appliquer</button></div>
+        <div class="op"><div><b>Espaces parasites</b><span>Espaces en trop, insécables, en début et fin de cellule.</span></div><button data-op="trim">Appliquer</button></div>
+        <div class="op"><div><b>Lignes et colonnes vides</b><span>Supprime ce qui ne contient rien.</span></div><button data-op="empty">Appliquer</button></div>
+        <div class="op"><div><b>Doublons</b><span id="dupInfo">Garde la première ligne de chaque groupe.</span>
+          <label class="inline"><input type="checkbox" id="dupCase" checked> ignorer majuscules et espaces</label></div><button data-op="dedupe">Appliquer</button></div>
+        <div class="op"><div><b>Dates au format JJ/MM/AAAA</b><span>Reconnaît 3/2/24, 2024-02-03, 03.02.2024…</span></div><button data-op="dates">Appliquer</button></div>
+        <div class="op"><div><b>Nombres écrits en texte</b><span>« 1 250,50 » devient un vrai nombre. Les codes comme 01234 sont conservés.</span></div><button data-op="numbers">Appliquer</button></div>
+        <div class="op"><div><b>Casse</b><span>
+          <select id="caseMode"><option value="title">Nom Propre</option><option value="upper">MAJUSCULES</option><option value="lower">minuscules</option></select></span></div><button data-op="case">Appliquer</button></div>
+        <div class="op"><div><b>Lignes parasites</b><span>Supprime les lignes contenant ce texte ou ayant trop peu de cellules remplies.</span>
+          <span class="row"><input type="text" id="pText" placeholder="ex. Total, Page"><label class="inline">moins de <input type="number" id="pMin" min="0" value="0" class="num"> cellules remplies</label></span></div><button data-op="parasites">Appliquer</button></div>
+      </div>
+      <div class="row">
+        <button id="undo" disabled>Annuler la dernière action</button>
+        <button id="reset" disabled>Revenir au fichier d'origine</button>
+      </div>
+      <ol id="log" class="log"></ol>
+    </section>
+
+    <section class="card">
+      <h2>4. Exporter</h2>
+      <div class="row">
+        <label>Nom du fichier <input type="text" id="outName" value="resultat"></label>
+        <button class="primary" id="expXlsx">Télécharger en .xlsx</button>
+        <button id="expCsv">Télécharger en .csv</button>
+      </div>
+      <p class="muted small">Le .csv est en UTF-8 avec séparateur « ; », lisible directement par Excel en français.</p>
+    </section>
+  </div>
+</main>
+
+<footer>Version 1 · vos données restent dans votre navigateur</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="ops.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

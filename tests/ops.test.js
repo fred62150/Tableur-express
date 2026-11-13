@@ -70,3 +70,15 @@ assert.ok(out.startsWith('﻿n;v\r\n"a;b";1,5\r\n01/02/2024;'));
 assert.strictEqual(dup.rows[0][0], 'a@x.fr ');
 
 console.log('Tous les tests passent');
+
+// ---- Plan IA ----
+global.Ops = Ops;
+const Plan = require('../plan.js');
+const pt = Ops.buildTable([['Nom', 'Date', 'Mail'], ['  Jean ', '3/2/24', 'A@x.fr'], ['jean', '03/02/2024', 'a@x.fr']], 0);
+const pr = Plan.parse('```json\n{"etapes":[{"op":"doublons","colonnes":["mail"],"ignorer_casse":true},{"op":"supprimer_tout"},{"op":"espaces","colonnes":["Inconnue"]},{"op":"casse","mode":"???"}]}\n```', pt);
+assert.strictEqual(pr.steps.length, 1);          // seule l'étape valide est gardée
+assert.strictEqual(pr.warnings.length, 4);       // les autres sont signalées, jamais élargies à toutes les colonnes
+assert.strictEqual(Plan.apply(pt, pr.steps).table.rows.length, 1);
+assert.strictEqual(Plan.parse('blabla', pt).steps.length, 0);
+assert.ok(!Plan.buildPrompt(pt, 'x', 0).includes('Exemples de lignes'));
+console.log('Tests du plan IA : OK');

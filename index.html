@@ -5,15 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tableur Express</title>
 <meta name="description" content="Nettoyez et préparez vos fichiers tableur dans votre navigateur, sans toucher à l'original.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
+<div class="app">
 <header class="top">
   <h1>Tableur Express</h1>
-  <p>Nettoyez vos fichiers .xlsx et .csv. L'original n'est jamais modifié et rien ne quitte votre navigateur.</p>
+  <button id="themeBtn" class="iconbtn" title="Changer de thème" aria-label="Changer de thème">◐</button>
 </header>
+<p class="sub">Nettoyez vos fichiers .xlsx et .csv. L'original n'est jamais modifié ; le fichier reste dans votre navigateur.</p>
 
 <main>
+  <details class="card" id="settings">
+    <summary>Réglages de l'IA <span class="muted small" id="aiStatus"></span></summary>
+    <p class="note" style="margin-top:0">Pour écrire vos demandes en langage naturel. Seuls les noms de colonnes et, si vous le permettez, quelques lignes d'exemple sont envoyés au modèle, jamais le fichier entier.</p>
+    <div class="row"><button id="importPR">Reprendre les réglages de Prise rapide</button></div>
+    <p class="note" id="importNote">Fonctionne si Prise rapide est configurée dans ce même navigateur. Les clés restent dans le navigateur, elles ne passent jamais par le chat.</p>
+    <div class="row">
+      <label class="fld grow">Fournisseur <select id="provSel"></select></label>
+      <label class="inline"><input type="checkbox" id="aiFull"> modèle complet (sinon modèle léger, moins cher)</label>
+    </div>
+    <div id="sbBox">
+      <div class="note" id="sbState"></div>
+      <div class="row">
+        <label class="fld grow">E-mail Supabase <input type="email" id="sbEmail" autocomplete="username"></label>
+        <label class="fld grow">Mot de passe <input type="password" id="sbPw" autocomplete="current-password"></label>
+        <button id="sbLogin">Se connecter</button>
+      </div>
+      <p class="note">La connexion au relais Supabase est nécessaire pour Albert. Le mot de passe n'est pas conservé.</p>
+    </div>
+  </details>
+
   <section class="card" id="importCard">
     <h2>1. Importer un fichier</h2>
     <label class="drop" id="drop">
@@ -22,7 +48,7 @@
       <span>ou touchez pour le choisir · .xlsx, .xls, .csv</span>
     </label>
     <div id="fileInfo" class="row hidden">
-      <span id="fileName" class="pill"></span>
+      <span id="fileName" class="tag"></span>
       <label>Feuille <select id="sheetSel"></select></label>
       <label>Ligne d'en-tête <input type="number" id="headerRow" min="1" value="1" class="num"></label>
     </div>
@@ -40,7 +66,22 @@
     </section>
 
     <section class="card">
-      <h2>3. Nettoyer</h2>
+      <h2>3. Décrire ce que vous voulez</h2>
+      <textarea id="aiPrompt" placeholder="Ex. : supprime les doublons sur l'e-mail, mets les dates en JJ/MM/AAAA et les noms en majuscules"></textarea>
+      <div class="row">
+        <button class="primary" id="aiGo">Proposer un plan</button>
+        <label class="inline"><input type="checkbox" id="aiSample" checked> envoyer aussi 3 lignes d'exemple</label>
+      </div>
+      <p class="msg" id="aiMsg"></p>
+      <div id="planBox" class="hidden">
+        <ol class="plan" id="planList"></ol>
+        <p class="note" id="planRemark"></p>
+        <div class="row"><button class="primary" id="planApply">Appliquer le plan</button><button id="planDrop">Ignorer</button></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. Nettoyer à la main</h2>
       <button class="primary" id="quick">Nettoyage rapide : accents, espaces, lignes vides, doublons</button>
       <div class="ops">
         <div class="op"><div><b>Accents cassés</b><span>Répare « FranÃ§ois » en « François ».</span></div><button data-op="accents">Appliquer</button></div>
@@ -63,7 +104,7 @@
     </section>
 
     <section class="card">
-      <h2>4. Exporter</h2>
+      <h2>5. Exporter</h2>
       <div class="row">
         <label>Nom du fichier <input type="text" id="outName" value="resultat"></label>
         <button class="primary" id="expXlsx">Télécharger en .xlsx</button>
@@ -74,10 +115,12 @@
   </div>
 </main>
 
-<footer>Version 1 · vos données restent dans votre navigateur</footer>
+<footer>Version 1.1 · vos données restent dans votre navigateur</footer>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="ops.js"></script>
+<script src="plan.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -3,6 +3,12 @@
 Application web pour nettoyer des fichiers tableur (.xlsx, .xls, .csv) directement dans le navigateur.
 L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 
+## Version 1.1
+
+- Thème « verre poli » identique à Prise rapide (clair et sombre)
+- Zone de prompt : l'IA (Albert, Mistral…) propose un plan d'étapes parmi une liste fermée, affiché avant exécution, annulable
+- Réglages IA repris de Prise rapide (même navigateur) ; seuls les noms de colonnes et 3 lignes d'exemple (désactivable) sont envoyés
+
 ## Version 1
 
 - Import .xlsx / .xls / .csv (encodage et séparateur détectés), choix de la feuille et de la ligne d'en-tête
@@ -14,7 +20,7 @@ L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 ## À venir
 
 Fusion et comparaison de fichiers, formules et totaux, tableaux croisés, graphiques,
-procédures enregistrées, pilotage par un prompt (Albert / Mistral).
+procédures enregistrées.
 
 ## Publication (GitHub Pages)
 

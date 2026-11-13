@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const state = {
     fileName: '', workbook: null, raw: null, headerRow: 0,
-    base: null, table: null, history: [], log: [], selected: new Set(),
+    base: null, table: null, history: [], log: [], selected: new Set(), plan: null,
   };
   const PREVIEW_ROWS = 100;
 
@@ -57,6 +57,7 @@
       state.headerRow = Ops.guessHeaderRow(state.raw);
       $('headerRow').value = state.headerRow + 1;
     }
+    clearPlan();
     state.base = Ops.buildTable(state.raw, state.headerRow);
     state.table = state.base;
     state.history = [];
@@ -99,6 +100,7 @@
 
   /* ---------- Opérations ---------- */
   function run(fn) {
+    clearPlan();
     const res = fn();
     state.history.push({ table: state.table, log: state.log });
     state.table = res.table;
@@ -189,10 +191,7 @@
     const fn = OPS[b.dataset.op];
     const res = fn();
     if (!res) return;
-    state.history.push({ table: state.table, log: state.log });
-    state.table = res.table;
-    state.log = [...state.log, res.log];
-    render();
+    run(() => res);
   });
 
   $('quick').addEventListener('click', () => {
@@ -208,6 +207,7 @@
   $('undo').addEventListener('click', () => {
     const h = state.history.pop();
     if (!h) return;
+    clearPlan();
     state.table = h.table;
     state.log = h.log;
     render();
@@ -215,4 +215,162 @@
   $('reset').addEventListener('click', () => resetFromRaw(false));
   $('expXlsx').addEventListener('click', exportXlsx);
   $('expCsv').addEventListener('click', exportCsv);
+
+  /* ---------- Thème ---------- */
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('te.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('te.' + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+  };
+  const shared = (k) => { try { const v = localStorage.getItem('pr.' + k); return v == null ? null : JSON.parse(v); } catch (e) { return null; } };
+  $('themeBtn').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    store.set('theme', next);
+  });
+
+  /* ---------- Réglages IA ---------- */
+  let PROV = store.get('prov', { list: [], def: '' });
+  let SB = store.get('sb', { url: '', key: '', email: '', session: null });
+  const curProv = () => PROV.list.find((p) => p.id === PROV.def) || PROV.list[0] || null;
+  const aiMsg = (t, err) => { const m = $('aiMsg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); };
+
+  function renderSettings() {
+    const sel = $('provSel');
+    sel.innerHTML = PROV.list.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('') || '<option value="">Aucun fournisseur</option>';
+    const p = curProv();
+    if (p) sel.value = p.id;
+    $('sbEmail').value = SB.email || '';
+    const needRelay = !!(p && p.relay);
+    $('sbBox').classList.toggle('hidden', !needRelay && !SB.session);
+    $('sbState').textContent = SB.session ? 'Relais Supabase : connecté.' : (needRelay ? 'Relais Supabase : non connecté (requis pour ' + p.name + ').' : '');
+    $('aiStatus').textContent = p && p.key ? '· ' + p.name : '· non configuré';
+  }
+
+  $('importPR').addEventListener('click', () => {
+    const p = shared('prov');
+    const s = shared('sb');
+    if (!p || !Array.isArray(p.list) || !p.list.length) {
+      $('importNote').textContent = 'Aucun réglage trouvé. Ouvrez d\'abord Prise rapide dans ce même navigateur, configurez-y vos fournisseurs, puis revenez ici.';
+      return;
+    }
+    PROV = { list: p.list, def: p.def };
+    if (s) SB = { url: s.url || '', key: s.key || '', email: s.email || '', session: null };
+    store.set('prov', PROV);
+    store.set('sb', SB);
+    $('importNote').textContent = `${PROV.list.length} fournisseur(s) repris de Prise rapide.`;
+    renderSettings();
+  });
+  $('provSel').addEventListener('change', (e) => { PROV.def = e.target.value; store.set('prov', PROV); renderSettings(); });
+
+  const sbBase = () => SB.url.replace(/\/+$/, '');
+  async function sbToken(grant, body) {
+    const r = await fetch(sbBase() + '/auth/v1/token?grant_type=' + grant, {
+      method: 'POST', headers: { apikey: SB.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error_description || j.msg || j.message || 'Connexion refusée.');
+    return j;
+  }
+  $('sbLogin').addEventListener('click', async () => {
+    const email = $('sbEmail').value.trim();
+    const pw = $('sbPw').value;
+    if (!SB.url || !SB.key) { $('sbState').textContent = 'Reprenez d\'abord les réglages de Prise rapide.'; return; }
+    try {
+      SB.session = await sbToken('password', { email, password: pw });
+      SB.email = email;
+      $('sbPw').value = '';
+      store.set('sb', SB);
+      renderSettings();
+    } catch (e) { $('sbState').textContent = e.message; }
+  });
+  async function sbCall(path, body) {
+    const go = () => fetch(sbBase() + path, {
+      method: 'POST',
+      headers: { apikey: SB.key, 'Content-Type': 'application/json', Authorization: 'Bearer ' + ((SB.session && SB.session.access_token) || SB.key) },
+      body: JSON.stringify(body),
+    });
+    let r = await go();
+    if (r.status === 401 && SB.session) {
+      SB.session = await sbToken('refresh_token', { refresh_token: SB.session.refresh_token });
+      store.set('sb', SB);
+      r = await go();
+    }
+    return r;
+  }
+
+  async function callAI(prov, model, prompt) {
+    const base = prov.base.replace(/\/+$/, '');
+    let url, headers, bodyObj;
+    if (prov.type === 'anthropic') {
+      url = base + '/messages';
+      headers = { 'content-type': 'application/json', 'x-api-key': prov.key, 'anthropic-version': '2023-06-01' };
+      bodyObj = { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+    } else {
+      url = base + '/chat/completions';
+      headers = { 'content-type': 'application/json', authorization: 'Bearer ' + prov.key };
+      bodyObj = { model, messages: [{ role: 'user', content: prompt }], temperature: 0.1 };
+    }
+    let j;
+    if (prov.relay) {
+      if (!SB.session) throw new Error('Connectez-vous au relais Supabase dans « Réglages de l\'IA ».');
+      const r = await sbCall('/functions/v1/ia-proxy', { url, headers, body: bodyObj });
+      if (!r.ok) throw new Error('Le relais Supabase a répondu une erreur (' + r.status + ').');
+      const w = await r.json();
+      if (!w.status) throw new Error('Le relais n\'a pas pu joindre ' + prov.name + '.');
+      if (w.status < 200 || w.status >= 300) throw new Error(prov.name + ' a répondu ' + w.status + ' : ' + String(w.text || '').slice(0, 160));
+      j = JSON.parse(w.text);
+    } else {
+      if (prov.type === 'anthropic') headers['anthropic-dangerous-direct-browser-access'] = 'true';
+      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyObj) });
+      if (!r.ok) throw new Error(prov.name + ' a répondu ' + r.status + ' : ' + (await r.text().catch(() => '')).slice(0, 160));
+      j = await r.json();
+    }
+    return prov.type === 'anthropic'
+      ? (j.content && j.content[0] && j.content[0].text) || ''
+      : (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+  }
+
+  /* ---------- Plan proposé par l'IA ---------- */
+  function clearPlan() {
+    state.plan = null;
+    const box = $('planBox');
+    if (box) box.classList.add('hidden');
+  }
+
+  $('aiGo').addEventListener('click', async () => {
+    const request = $('aiPrompt').value.trim();
+    const prov = curProv();
+    if (!request) { aiMsg('Écrivez d\'abord ce que vous voulez faire.', true); return; }
+    if (!prov || !prov.key) { aiMsg('Aucun fournisseur d\'IA configuré : ouvrez « Réglages de l\'IA » en haut de page.', true); return; }
+    const model = $('aiFull').checked ? (prov.full || prov.light) : (prov.light || prov.full);
+    const btn = $('aiGo');
+    btn.disabled = true;
+    aiMsg(`Demande envoyée à ${prov.name}…`);
+    clearPlan();
+    try {
+      const txt = await callAI(prov, model, Plan.buildPrompt(state.table, request, $('aiSample').checked ? 3 : 0));
+      const plan = Plan.parse(txt, state.table);
+      state.plan = plan;
+      $('planList').innerHTML = plan.steps.map((s) => `<li>${esc(s.label)}</li>`).join('')
+        + plan.warnings.map((w) => `<li class="warn">${esc(w)}</li>`).join('');
+      $('planRemark').textContent = plan.remark ? 'Remarque du modèle : ' + plan.remark : '';
+      $('planApply').disabled = !plan.steps.length;
+      $('planBox').classList.remove('hidden');
+      aiMsg(plan.steps.length ? 'Vérifiez le plan puis appliquez-le. Vous pourrez l\'annuler.' : 'Aucune étape exploitable dans la réponse.', !plan.steps.length);
+    } catch (e) {
+      aiMsg(e.message || 'Erreur lors de l\'appel à l\'IA.', true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('planApply').addEventListener('click', () => {
+    const plan = state.plan;
+    if (!plan || !plan.steps.length) return;
+    run(() => Plan.apply(state.table, plan.steps));
+    aiMsg('Plan appliqué.');
+  });
+  $('planDrop').addEventListener('click', () => { clearPlan(); aiMsg(''); });
+
+  renderSettings();
 })();

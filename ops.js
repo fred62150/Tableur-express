@@ -270,6 +270,99 @@ const Ops = (() => {
     return n;
   }
 
+
+  /* ---------- Tableau croisé ---------- */
+  function toNum(v) {
+    if (typeof v === 'number') return v;
+    if (typeof v !== 'string') return NaN;
+    const s = v.trim();
+    return NUM_RE.test(s) ? parseFloat(s.replace(/[  ]/g, '').replace(',', '.')) : NaN;
+  }
+  const AGG_LABEL = { sum: 'Somme', avg: 'Moyenne', count: 'Nombre', min: 'Minimum', max: 'Maximum' };
+
+  /* opt : { rows:[indices], col:indice|null, val:indice|null, agg, totals, sortRows:'az'|'appearance' } */
+  function pivot(t, opt) {
+    const agg = opt.agg || 'sum';
+    const rowIdx = opt.rows;
+    const colIdx = opt.col === undefined || opt.col === null ? null : opt.col;
+    const valIdx = opt.val === undefined || opt.val === null ? null : opt.val;
+    const disp = (v) => (isEmpty(v) ? '(vide)' : v instanceof Date ? fmtDate(v) : String(v).trim());
+    const cmp = (a, b) => {
+      if (typeof a.raw === 'number' && typeof b.raw === 'number') return a.raw - b.raw;
+      if (a.raw instanceof Date && b.raw instanceof Date) return a.raw - b.raw;
+      return a.text.localeCompare(b.text, 'fr', { numeric: true, sensitivity: 'base' });
+    };
+    const acc = () => ({ sum: 0, n: 0, rows: 0, min: Infinity, max: -Infinity });
+    const add = (a, x) => {
+      a.rows++;
+      if (!Number.isNaN(x)) { a.sum += x; a.n++; if (x < a.min) a.min = x; if (x > a.max) a.max = x; }
+    };
+    const rnd = (x) => Math.round(x * 1e8) / 1e8;
+    const fin = (a) => {
+      if (!a) return agg === 'sum' || agg === 'count' ? 0 : '';
+      if (agg === 'count') return a.rows;
+      if (agg === 'sum') return rnd(a.sum);
+      if (!a.n) return '';
+      if (agg === 'avg') return rnd(a.sum / a.n);
+      return agg === 'min' ? a.min : a.max;
+    };
+
+    const rowMap = new Map();
+    const colMap = new Map();
+    const cells = new Map();
+    const rowTot = new Map();
+    const colTot = new Map();
+    const grand = acc();
+    t.rows.forEach((r) => {
+      const rk = rowIdx.map((i) => disp(r[i])).join('\u0001');
+      if (!rowMap.has(rk)) rowMap.set(rk, rowIdx.map((i) => ({ raw: r[i], text: disp(r[i]) })));
+      const ck = colIdx === null ? '' : disp(r[colIdx]);
+      if (colIdx !== null && !colMap.has(ck)) colMap.set(ck, { raw: r[colIdx], text: ck });
+      const x = valIdx === null ? NaN : toNum(r[valIdx]);
+      const key = rk + '\u0002' + ck;
+      if (!cells.has(key)) cells.set(key, acc());
+      add(cells.get(key), x);
+      if (!rowTot.has(rk)) rowTot.set(rk, acc());
+      add(rowTot.get(rk), x);
+      if (!colTot.has(ck)) colTot.set(ck, acc());
+      add(colTot.get(ck), x);
+      add(grand, x);
+    });
+
+    let rowKeys = [...rowMap.keys()];
+    if (opt.sortRows !== 'appearance') {
+      rowKeys.sort((a, b) => {
+        const A = rowMap.get(a);
+        const B = rowMap.get(b);
+        for (let i = 0; i < A.length; i++) { const c = cmp(A[i], B[i]); if (c) return c; }
+        return 0;
+      });
+    }
+    let colKeys = [...colMap.keys()];
+    const sortable = colKeys.length && colKeys.every((k) => typeof colMap.get(k).raw === 'number' || colMap.get(k).raw instanceof Date);
+    if (sortable) colKeys.sort((a, b) => cmp(colMap.get(a), colMap.get(b)));
+
+    const valName = valIdx === null ? '' : t.headers[valIdx];
+    const aggName = agg === 'count' ? 'Nombre de lignes' : `${AGG_LABEL[agg]} de ${valName}`;
+    const headers = [...rowIdx.map((i) => t.headers[i])];
+    if (colIdx === null) headers.push(aggName);
+    else { colKeys.forEach((k) => headers.push(k)); if (opt.totals) headers.push('Total'); }
+
+    const rows = rowKeys.map((rk) => {
+      const line = rowMap.get(rk).map((c) => c.raw instanceof Date || typeof c.raw === 'number' ? c.raw : c.text);
+      if (colIdx === null) line.push(fin(rowTot.get(rk)));
+      else { colKeys.forEach((ck) => line.push(fin(cells.get(rk + '\u0002' + ck)))); if (opt.totals) line.push(fin(rowTot.get(rk))); }
+      return line;
+    });
+    if (opt.totals) {
+      const line = rowIdx.map((_, i) => (i === 0 ? 'Total' : ''));
+      if (colIdx === null) line.push(fin(grand));
+      else { colKeys.forEach((ck) => line.push(fin(colTot.get(ck)))); line.push(fin(grand)); }
+      rows.push(line);
+    }
+    return { table: { headers, rows }, log: `Tableau croisé : ${aggName}${colIdx === null ? '' : ' par ' + t.headers[colIdx]} — ${rows.length} ligne(s)` };
+  }
+
   /* ---------- Export ---------- */
   function cellToText(v) {
     if (v instanceof Date) return fmtDate(v);
@@ -285,7 +378,7 @@ const Ops = (() => {
   return {
     isEmpty, clone, decodeBuffer, parseCSV, guessHeaderRow, buildTable, fmtDate, parseDate, cleanExcelDate,
     fixMojibake, fixAccents, trimSpaces, removeEmpty, dedupe, countDuplicates, normalizeDates, toNumbers,
-    changeCase, dropParasites, emptyCells, toCSV, cellToText,
+    changeCase, dropParasites, emptyCells, toCSV, cellToText, pivot, toNum,
   };
 })();
 

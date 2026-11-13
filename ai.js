@@ -6,7 +6,11 @@ const AI = (() => {
     return table.headers.map((h, ci) => {
       const vals = table.rows.map((r) => r[ci]).filter((v) => !Ops.isEmpty(v));
       const k = { nombre: 0, date: 0, texte: 0 };
-      vals.forEach((v) => { if (typeof v === 'number') k.nombre++; else if (v instanceof Date) k.date++; else k.texte++; });
+      vals.forEach((v) => {
+        if (typeof v === 'number' || (typeof v === 'string' && !Number.isNaN(Ops.toNum(v)))) k.nombre++;
+        else if (v instanceof Date || (typeof v === 'string' && Ops.parseDate(v))) k.date++;
+        else k.texte++;
+      });
       const type = vals.length ? Object.entries(k).sort((a, b) => b[1] - a[1])[0][0] : 'vide';
       const o = { nom: h, type, vides: table.rows.length - vals.length };
       if (nSample > 0) {
@@ -30,7 +34,7 @@ const AI = (() => {
     'Pas de réseau, pas de DOM, pas de bibliothèque. Ne modifie pas table en place : renvoie un nouvel objet {headers, rows}. Conserve les colonnes non concernées. Toute colonne ajoutée porte un nom dans headers.',
     'Les nombres au format français peuvent être des textes ("1 250,50") : convertis-les si besoin.',
     'Tableau croisé : première colonne = champ placé en lignes, puis une colonne par valeur distincte du champ placé en colonnes (triées), puis une colonne Total ; somme (ou comptage) par case, 0 si vide. Renvoie directement ce tableau de résultats.',
-    'Si la demande est impossible, n\'écris que l\'explication, sans bloc de code.',
+    'Si la demande est ambiguë ou incomplète (colonne non précisée, plusieurs interprétations), pose UNE seule question courte qui commence par « Question : » et n\'écris pas de code. Si la demande est impossible, n\'écris que l\'explication, sans bloc de code.',
   ].join('\n');
 
   const header = (table, sampleN) =>

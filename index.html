@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1.4">
+<link rel="stylesheet" href="style.css?v=1.5">
 <script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
@@ -85,6 +85,10 @@
 
     <section class="card">
       <h2>3. Décrire ce que vous voulez</h2>
+      <div class="muted small">Idées pour ce fichier (touchez pour les utiliser) :</div>
+      <div id="ideas" class="chips"></div>
+      <div class="muted small">Colonnes (touchez pour les insérer dans votre demande) :</div>
+      <div id="colChips" class="chips"></div>
       <textarea id="aiPrompt" placeholder="Ex. : supprime les doublons sur l'e-mail, mets les dates en JJ/MM/AAAA et les noms en majuscules"></textarea>
       <div class="row">
         <button class="primary" id="aiGo">Proposer une transformation</button>
@@ -95,6 +99,7 @@
         <label class="inline"><input type="checkbox" id="aiFull" checked> modèle complet (conseillé pour les transformations)</label>
       </div>
       <p class="msg" id="aiMsg"></p>
+      <div id="askBox" class="row hidden"><input type="text" id="askAnswer" class="grow" placeholder="Votre réponse à la question de l'IA"><button class="primary" id="askGo">Répondre</button></div>
       <details id="rawBox" class="hidden"><summary class="small muted">Voir la réponse brute de l'IA</summary><pre id="rawText" class="code"></pre></details>
       <div id="resBox" class="hidden">
         <p id="resExplain"></p>
@@ -107,7 +112,22 @@
     </section>
 
     <section class="card">
-      <h2>4. Nettoyer à la main</h2>
+      <h2>4. Tableau croisé dynamique <span class="muted small">(sans IA)</span></h2>
+      <div class="pvgrid">
+        <label class="fld">Lignes<select id="pvRow1"></select></label>
+        <label class="fld">Lignes (2e niveau, facultatif)<select id="pvRow2"></select></label>
+        <label class="fld">Colonnes (facultatif)<select id="pvCol"></select></label>
+        <label class="fld">Valeurs<select id="pvVal"></select></label>
+        <label class="fld">Calcul<select id="pvAgg"><option value="sum">Somme</option><option value="avg">Moyenne</option><option value="count">Nombre de lignes</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label>
+        <label class="fld">Tri des lignes<select id="pvSort"><option value="az">A → Z / croissant</option><option value="appearance">Ordre d'apparition</option></select></label>
+      </div>
+      <div class="row"><label class="inline"><input type="checkbox" id="pvTot" checked> afficher les totaux</label><button class="primary" id="pvGo">Créer le tableau croisé</button></div>
+      <p class="note">Le résultat remplace le tableau affiché. Vous pouvez l'annuler, puis l'exporter.</p>
+      <p class="msg" id="pvMsg2"></p>
+    </section>
+
+    <section class="card">
+      <h2>5. Nettoyer à la main</h2>
       <button class="primary" id="quick">Nettoyage rapide : accents, espaces, lignes vides, doublons</button>
       <div class="ops">
         <div class="op"><div><b>Accents cassés</b><span>Répare « FranÃ§ois » en « François ».</span></div><button data-op="accents">Appliquer</button></div>
@@ -130,7 +150,7 @@
     </section>
 
     <section class="card">
-      <h2>5. Exporter</h2>
+      <h2>6. Exporter</h2>
       <div class="row">
         <label>Nom du fichier <input type="text" id="outName" value="resultat"></label>
         <button class="primary" id="expXlsx">Télécharger en .xlsx</button>
@@ -141,13 +161,13 @@
   </div>
 </main>
 
-<footer>Version 1.4 · vos données restent dans votre navigateur</footer>
+<footer>Version 1.5 · vos données restent dans votre navigateur</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="ops.js?v=1.4"></script>
-<script src="sandbox.js?v=1.4"></script>
-<script src="ai.js?v=1.4"></script>
-<script src="app.js?v=1.4"></script>
+<script src="ops.js?v=1.5"></script>
+<script src="sandbox.js?v=1.5"></script>
+<script src="ai.js?v=1.5"></script>
+<script src="app.js?v=1.5"></script>
 </body>
 </html>

@@ -90,6 +90,7 @@
       ? `Aperçu des ${PREVIEW_ROWS} premières lignes sur ${t.rows.length.toLocaleString('fr-FR')}. Les opérations s'appliquent à toutes les lignes.`
       : '';
 
+    renderHelpers();
     $('log').innerHTML = state.log.map((l) => `<li>${esc(l)}</li>`).join('');
     $('undo').disabled = !state.history.length;
     $('reset').disabled = !state.history.length;
@@ -423,6 +424,64 @@
       : (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
   }
 
+
+  /* ---------- Aides à la saisie et tableau croisé ---------- */
+  let helpersKey = '';
+  function renderHelpers() {
+    const t = state.table;
+    const key = t.headers.join('\u0001');
+    if (key === helpersKey) return;
+    helpersKey = key;
+    const info = AI.describeColumns(t, 0);
+    const opts = (withNone) => (withNone ? '<option value="">(aucune)</option>' : '') + t.headers.map((h, i) => `<option value="${i}">${esc(h)}</option>`).join('');
+    $('pvRow1').innerHTML = opts(false);
+    $('pvRow2').innerHTML = opts(true);
+    $('pvCol').innerHTML = opts(true);
+    $('pvVal').innerHTML = opts(true);
+    const text = info.findIndex((c) => c.type === 'texte');
+    const num = info.findIndex((c) => c.type === 'nombre');
+    const date = info.findIndex((c) => c.type === 'date');
+    $('pvRow1').value = String(text >= 0 ? text : 0);
+    $('pvVal').value = num >= 0 ? String(num) : '';
+    if (num < 0) $('pvAgg').value = 'count';
+    $('colChips').innerHTML = t.headers.map((h, i) => `<button class="chip" data-ins="${i}">${esc(h)}</button>`).join('');
+    const q = (i) => `« ${t.headers[i]} »`;
+    const ideas = [];
+    if (num >= 0 && text >= 0) ideas.push(`Fais le total de ${q(num)} par ${q(text)}`);
+    if (text >= 0) ideas.push(`Supprime les doublons sur ${q(text)}`);
+    if (date >= 0) ideas.push(`Trie par ${q(date)} du plus récent au plus ancien`);
+    if (num >= 0) ideas.push(`Ajoute une colonne avec ${q(num)} + 20 %`);
+    $('ideas').innerHTML = ideas.map((s) => `<button class="chip" data-idea="${esc(s)}">${esc(s)}</button>`).join('');
+  }
+
+  $('ideas').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-idea]');
+    if (b) { $('aiPrompt').value = b.dataset.idea; $('aiPrompt').focus(); }
+  });
+  $('colChips').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ins]');
+    if (!b) return;
+    const ta = $('aiPrompt');
+    const name = `« ${state.table.headers[+b.dataset.ins]} »`;
+    const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
+    ta.value = ta.value.slice(0, s) + name + ta.value.slice(ta.selectionEnd == null ? s : ta.selectionEnd);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = s + name.length;
+  });
+
+  $('pvGo').addEventListener('click', () => {
+    const msg = $('pvMsg2');
+    const num = (id) => ($(id).value === '' ? null : +$(id).value);
+    const agg = $('pvAgg').value;
+    const rows = [num('pvRow1'), num('pvRow2')].filter((v) => v !== null);
+    const val = num('pvVal');
+    if (!rows.length) { msg.textContent = 'Choisissez au moins un champ en lignes.'; msg.className = 'msg err'; return; }
+    if (agg !== 'count' && val === null) { msg.textContent = 'Choisissez la colonne à calculer, ou « Nombre de lignes ».'; msg.className = 'msg err'; return; }
+    msg.textContent = '';
+    const col = num('pvCol');
+    run(() => Ops.pivot(state.table, { rows, col, val, agg, totals: $('pvTot').checked, sortRows: $('pvSort').value }));
+  });
+
   /* ---------- Transformation proposée par l'IA ---------- */
   function clearPlan() {
     state.ai = null;
@@ -452,6 +511,7 @@
     $('resRetry').disabled = true;
     aiMsg(`Demande envoyée à ${prov.name}… (jusqu'à une minute pour un tableau croisé)`);
     $('rawBox').classList.add('hidden');
+    $('askBox').classList.add('hidden');
     try {
       const prompt = retry
         ? AI.buildRetryPrompt(t, request, retry.code, retry.feedback, sampleN)
@@ -462,6 +522,14 @@
       let r = AI.parse(reply);
       if (!r.code) {
         clearPlan();
+        if (/^\s*\**\s*question/i.test(r.explication)) {
+          state.askRequest = request;
+          aiMsg(r.explication.replace(/^\s*\**\s*question\s*:?\**\s*/i, 'L\'IA a besoin d\'une précision : '));
+          $('askBox').classList.remove('hidden');
+          $('askAnswer').value = '';
+          $('askAnswer').focus();
+          return;
+        }
         aiMsg(r.explication || 'Le modèle n\'a pas renvoyé de transformation exploitable.', true);
         $('rawBox').classList.remove('hidden');
         return;
@@ -487,6 +555,11 @@
     }
   }
 
+  $('askGo').addEventListener('click', () => {
+    const ans = $('askAnswer').value.trim();
+    if (!ans || !state.askRequest) return;
+    generate(state.askRequest + '\nPrécision : ' + ans, null);
+  });
   $('aiGo').addEventListener('click', () => { clearPlan(); generate($('aiPrompt').value.trim(), null); });
   $('resRetry').addEventListener('click', () => {
     const cur = state.ai;

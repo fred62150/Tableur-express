@@ -71,6 +71,16 @@ assert.strictEqual(dup.rows[0][0], 'a@x.fr ');
 
 console.log('Tous les tests passent');
 
+// ---- Tableau croisé ----
+const pv = Ops.buildTable([['Service', 'Mois', 'Montant'], ['RH', 'Janvier', 100], ['RH', 'Février', 50], ['IT', 'Janvier', '1 200,50'], ['IT', 'Janvier', 300], ['IT', 'Février', 20]], 0);
+const r1 = Ops.pivot(pv, { rows: [0], col: 1, val: 2, agg: 'sum', totals: true }).table;
+assert.deepStrictEqual(r1.headers, ['Service', 'Janvier', 'Février', 'Total']);
+assert.deepStrictEqual(r1.rows, [['IT', 1500.5, 20, 1520.5], ['RH', 100, 50, 150], ['Total', 1600.5, 70, 1670.5]]);
+const r2 = Ops.pivot(pv, { rows: [0], col: null, val: 2, agg: 'avg', totals: false }).table;
+assert.deepStrictEqual(r2.rows, [['IT', 506.83333333], ['RH', 75]]);
+assert.strictEqual(Ops.pivot(pv, { rows: [0], col: 1, val: null, agg: 'count', totals: true }).table.rows[2][3], 5);
+assert.deepStrictEqual(Ops.pivot(pv, { rows: [0], col: 1, val: 2, agg: 'sum', sortRows: 'appearance' }).table.rows.map((r) => r[0]), ['RH', 'IT']);
+
 // ---- IA ----
 global.Ops = Ops;
 const AI = require('../ai.js');

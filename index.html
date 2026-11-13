@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1.1">
+<link rel="stylesheet" href="style.css?v=1.2">
 <script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
@@ -25,19 +25,37 @@
     <p class="note" style="margin-top:0">Pour écrire vos demandes en langage naturel. Seuls les noms de colonnes et, si vous le permettez, quelques lignes d'exemple sont envoyés au modèle, jamais le fichier entier.</p>
     <div class="row"><button id="importPR">Reprendre les réglages de Prise rapide</button></div>
     <p class="note" id="importNote">Fonctionne si Prise rapide est configurée dans ce même navigateur. Les clés restent dans le navigateur, elles ne passent jamais par le chat.</p>
-    <div class="row">
-      <label class="fld grow">Fournisseur <select id="provSel"></select></label>
-      <label class="inline"><input type="checkbox" id="aiFull"> modèle complet (sinon modèle léger, moins cher)</label>
-    </div>
-    <div id="sbBox">
-      <div class="note" id="sbState"></div>
+
+    <h3>Fournisseurs d'IA</h3>
+    <p class="note" style="margin-top:0">Les clés restent sur cet appareil. Chaque fournisseur facture à l'usage. Pour Albert, vérifiez le nom du modèle auprès de votre administrateur.</p>
+    <div class="stack" id="provList"></div>
+    <div><span class="lab">Ajouter un fournisseur</span><div class="chips" id="provPresets"></div></div>
+    <div class="sted hidden" id="provEd">
+      <label class="fld">Nom<input id="pvName" type="text" maxlength="40"></label>
+      <label class="fld">Type d'API<select id="pvType"><option value="openai">Compatible OpenAI (Mistral, Gemini, Albert, Perplexity…)</option><option value="anthropic">Anthropic (Claude)</option></select></label>
+      <label class="fld">Adresse de l'API<input id="pvBase" type="url" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <label class="fld">Modèle léger (demandes simples, moins cher)<input id="pvLight" type="text" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <label class="fld">Modèle complet (demandes complexes)<input id="pvFull" type="text" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <label class="fld">Clé API<input id="pvKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label class="inline"><input type="checkbox" id="pvRelay"> Passer par mon Supabase (si le fournisseur bloque le navigateur)</label>
       <div class="row">
-        <label class="fld grow">E-mail Supabase <input type="email" id="sbEmail" autocomplete="username"></label>
-        <label class="fld grow">Mot de passe <input type="password" id="sbPw" autocomplete="current-password"></label>
-        <button id="sbLogin">Se connecter</button>
+        <button class="primary" id="pvSave">Enregistrer</button>
+        <button id="pvTest">Tester</button>
+        <button id="pvCancel">Annuler</button>
+        <button id="pvDel" class="hidden">Supprimer</button>
       </div>
-      <p class="note">La connexion au relais Supabase est nécessaire pour Albert. Le mot de passe n'est pas conservé.</p>
+      <p class="note" id="pvMsg"></p>
     </div>
+
+    <h3>Relais Supabase</h3>
+    <p class="note" id="sbState" style="margin-top:0"></p>
+    <div class="stack" id="sbFields">
+      <label class="fld">Adresse du projet Supabase<input id="sbUrl" type="url" placeholder="https://xxxxxxxx.supabase.co" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <label class="fld">Clé publique (anon ou publishable)<input id="sbKey" type="text" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <label class="fld">E-mail<input type="email" id="sbEmail" autocomplete="username" autocapitalize="off"></label>
+      <label class="fld">Mot de passe (non conservé)<input type="password" id="sbPw" autocomplete="current-password"></label>
+    </div>
+    <div class="row"><button class="primary" id="sbLogin">Se connecter</button><button id="sbLogout" class="hidden">Se déconnecter</button></div>
   </details>
 
   <section class="card" id="importCard">
@@ -71,6 +89,10 @@
       <div class="row">
         <button class="primary" id="aiGo">Proposer un plan</button>
         <label class="inline"><input type="checkbox" id="aiSample" checked> envoyer aussi 3 lignes d'exemple</label>
+      </div>
+      <div class="row">
+        <label class="fld hidden" id="provWrap">Fournisseur <select id="provSel"></select></label>
+        <label class="inline"><input type="checkbox" id="aiFull"> modèle complet (sinon léger)</label>
       </div>
       <p class="msg" id="aiMsg"></p>
       <div id="planBox" class="hidden">
@@ -115,12 +137,12 @@
   </div>
 </main>
 
-<footer>Version 1.1 · vos données restent dans votre navigateur</footer>
+<footer>Version 1.2 · vos données restent dans votre navigateur</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="ops.js?v=1.1"></script>
-<script src="plan.js?v=1.1"></script>
-<script src="app.js?v=1.1"></script>
+<script src="ops.js?v=1.2"></script>
+<script src="plan.js?v=1.2"></script>
+<script src="app.js?v=1.2"></script>
 </body>
 </html>

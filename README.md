@@ -3,6 +3,10 @@
 Application web pour nettoyer des fichiers tableur (.xlsx, .xls, .csv) directement dans le navigateur.
 L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 
+## Version 1.2
+
+- Réglages de l'IA complets comme dans Prise rapide : fournisseurs (ajout par préréglage, modification, défaut, test, suppression), relais Supabase
+
 ## Version 1.1
 
 - Thème « verre poli » identique à Prise rapide (clair et sombre)

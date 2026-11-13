@@ -234,17 +234,106 @@
   const curProv = () => PROV.list.find((p) => p.id === PROV.def) || PROV.list[0] || null;
   const aiMsg = (t, err) => { const m = $('aiMsg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); };
 
+  const PP = [
+    { name: 'Mistral', type: 'openai', base: 'https://api.mistral.ai/v1', light: 'mistral-small-latest', full: 'mistral-large-latest' },
+    { name: 'Gemini', type: 'openai', base: 'https://generativelanguage.googleapis.com/v1beta/openai', light: 'gemini-flash-latest', full: 'gemini-pro-latest' },
+    { name: 'Perplexity', type: 'openai', base: 'https://api.perplexity.ai', light: 'sonar', full: 'sonar-pro' },
+    { name: 'Albert (État)', type: 'openai', base: 'https://albert.api.etalab.gouv.fr/v1', light: 'openweight-small', full: 'openweight-large', relay: true },
+    { name: 'OpenAI', type: 'openai', base: 'https://api.openai.com/v1', light: 'gpt-4.1-mini', full: 'gpt-4.1' },
+    { name: 'Claude', type: 'anthropic', base: 'https://api.anthropic.com/v1', light: 'claude-haiku-5-5', full: 'claude-sonnet-5-5' },
+  ];
+  let pedit = null;
+  let pvConfirm = false;
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'p' + Date.now() + Math.random().toString(16).slice(2));
+  const saveProv = () => store.set('prov', PROV);
+
   function renderSettings() {
-    const sel = $('provSel');
-    sel.innerHTML = PROV.list.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('') || '<option value="">Aucun fournisseur</option>';
-    const p = curProv();
-    if (p) sel.value = p.id;
+    const d = curProv();
+    $('provList').innerHTML = PROV.list.length ? PROV.list.map((p) => {
+      const isDef = d && d.id === p.id;
+      return `<div class="prow" data-id="${esc(p.id)}"><div class="pmain"><span><strong>${esc(p.name)}</strong>${isDef ? '<span class="tag">Par défaut</span>' : ''}</span>`
+        + `<span class="meta">${esc(p.light || '')}${p.full ? ' · ' + esc(p.full) : ''}${p.relay ? ' · relais Supabase' : ''}${p.key ? '' : ' · clé manquante'}</span></div>`
+        + `<div class="row" style="margin:0"><button data-pa="edit">Modifier</button>${isDef ? '' : '<button data-pa="def">Par défaut</button>'}</div></div>`;
+    }).join('') : '<p class="note" style="margin:0">Aucun fournisseur pour l\'instant. Choisissez-en un ci-dessous.</p>';
+    $('provPresets').innerHTML = PP.map((p, i) => `<button class="chip" data-pp="${i}">+ ${esc(p.name)}</button>`).join('') + '<button class="chip" data-pp="custom">+ Autre</button>';
+    $('provSel').innerHTML = PROV.list.map((p) => `<option value="${esc(p.id)}"${d && d.id === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+    $('provWrap').classList.toggle('hidden', PROV.list.length < 2);
+    $('provEd').classList.toggle('hidden', !pedit);
+    $('pvDel').textContent = pvConfirm ? 'Confirmer la suppression' : 'Supprimer';
+    $('sbUrl').value = SB.url || '';
+    $('sbKey').value = SB.key || '';
     $('sbEmail').value = SB.email || '';
-    const needRelay = !!(p && p.relay);
-    $('sbBox').classList.toggle('hidden', !needRelay && !SB.session);
-    $('sbState').textContent = SB.session ? 'Relais Supabase : connecté.' : (needRelay ? 'Relais Supabase : non connecté (requis pour ' + p.name + ').' : '');
-    $('aiStatus').textContent = p && p.key ? '· ' + p.name : '· non configuré';
+    $('sbLogin').classList.toggle('hidden', !!SB.session);
+    $('sbLogout').classList.toggle('hidden', !SB.session);
+    $('sbFields').classList.toggle('hidden', !!SB.session);
+    $('sbState').textContent = SB.session
+      ? 'Connecté' + (SB.email ? ' en tant que ' + SB.email : '') + '.'
+      : 'Non connecté. Nécessaire seulement pour les fournisseurs qui passent par le relais (Albert).';
+    $('aiStatus').textContent = d && d.key ? '· ' + d.name : '· non configuré';
   }
+
+  function openProvEditor(src, isNew) {
+    pedit = { id: isNew ? null : src.id };
+    pvConfirm = false;
+    $('pvName').value = src.name || ''; $('pvType').value = src.type || 'openai'; $('pvBase').value = src.base || '';
+    $('pvLight').value = src.light || ''; $('pvFull').value = src.full || ''; $('pvKey').value = src.key || '';
+    $('pvRelay').checked = !!src.relay;
+    $('pvDel').classList.toggle('hidden', isNew);
+    $('pvMsg').textContent = '';
+    renderSettings();
+    $('pvKey').focus();
+  }
+  const readProv = () => ({
+    name: $('pvName').value.trim(), type: $('pvType').value, base: $('pvBase').value.trim(),
+    light: $('pvLight').value.trim(), full: $('pvFull').value.trim(), key: $('pvKey').value.trim(), relay: $('pvRelay').checked,
+  });
+
+  $('provPresets').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pp]');
+    if (!b) return;
+    openProvEditor(b.dataset.pp === 'custom' ? { name: '', type: 'openai', base: '', light: '', full: '' } : PP[+b.dataset.pp], true);
+  });
+  $('provList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pa]');
+    if (!b) return;
+    const id = b.closest('.prow').dataset.id;
+    const p = PROV.list.find((x) => x.id === id);
+    if (!p) return;
+    if (b.dataset.pa === 'def') { PROV.def = id; saveProv(); renderSettings(); } else openProvEditor(p, false);
+  });
+  $('provSel').addEventListener('change', (e) => { PROV.def = e.target.value; saveProv(); renderSettings(); });
+  $('pvCancel').addEventListener('click', () => { pedit = null; pvConfirm = false; renderSettings(); });
+  $('pvSave').addEventListener('click', () => {
+    const p = readProv();
+    if (!p.name || !p.base || !p.light) { $('pvMsg').textContent = 'Nom, adresse et modèle léger sont nécessaires.'; return; }
+    if (!/^https:\/\//i.test(p.base)) { $('pvMsg').textContent = 'L\'adresse doit commencer par https://'; return; }
+    if (pedit.id) Object.assign(PROV.list.find((x) => x.id === pedit.id), p);
+    else { p.id = newId(); PROV.list.push(p); if (!PROV.def) PROV.def = p.id; }
+    saveProv();
+    pedit = null;
+    renderSettings();
+  });
+  $('pvDel').addEventListener('click', () => {
+    if (!pvConfirm) { pvConfirm = true; renderSettings(); return; }
+    const id = pedit.id;
+    PROV.list = PROV.list.filter((x) => x.id !== id);
+    if (PROV.def === id) PROV.def = PROV.list[0] ? PROV.list[0].id : '';
+    saveProv();
+    pedit = null; pvConfirm = false;
+    renderSettings();
+  });
+  $('pvTest').addEventListener('click', async () => {
+    const p = readProv();
+    const msg = $('pvMsg');
+    if (!p.base || !p.light || !p.key) { msg.textContent = 'Renseignez l\'adresse, le modèle léger et la clé.'; return; }
+    $('pvTest').disabled = true;
+    msg.textContent = 'Test en cours…';
+    try {
+      const t = await callAI(p, p.light, 'Réponds uniquement par le mot OK.');
+      msg.textContent = /ok/i.test(t) ? 'Connexion réussie.' : 'Le fournisseur répond, mais de façon inattendue.';
+    } catch (e) { msg.textContent = e.message; }
+    $('pvTest').disabled = false;
+  });
 
   $('importPR').addEventListener('click', () => {
     const p = shared('prov');
@@ -260,7 +349,6 @@
     $('importNote').textContent = `${PROV.list.length} fournisseur(s) repris de Prise rapide.`;
     renderSettings();
   });
-  $('provSel').addEventListener('change', (e) => { PROV.def = e.target.value; store.set('prov', PROV); renderSettings(); });
 
   const sbBase = () => SB.url.replace(/\/+$/, '');
   async function sbToken(grant, body) {
@@ -272,9 +360,11 @@
     return j;
   }
   $('sbLogin').addEventListener('click', async () => {
+    SB.url = $('sbUrl').value.trim();
+    SB.key = $('sbKey').value.trim();
     const email = $('sbEmail').value.trim();
     const pw = $('sbPw').value;
-    if (!SB.url || !SB.key) { $('sbState').textContent = 'Reprenez d\'abord les réglages de Prise rapide.'; return; }
+    if (!/^https:\/\//i.test(SB.url) || !SB.key) { $('sbState').textContent = 'Renseignez l\'adresse du projet (https://…) et la clé publique.'; return; }
     try {
       SB.session = await sbToken('password', { email, password: pw });
       SB.email = email;
@@ -283,6 +373,7 @@
       renderSettings();
     } catch (e) { $('sbState').textContent = e.message; }
   });
+  $('sbLogout').addEventListener('click', () => { SB.session = null; store.set('sb', SB); renderSettings(); });
   async function sbCall(path, body) {
     const go = () => fetch(sbBase() + path, {
       method: 'POST',
@@ -321,7 +412,9 @@
       j = JSON.parse(w.text);
     } else {
       if (prov.type === 'anthropic') headers['anthropic-dangerous-direct-browser-access'] = 'true';
-      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyObj) });
+      let r;
+      try { r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyObj) }); }
+      catch (e) { throw new Error(prov.name + ' ne répond pas au navigateur. Cochez « Passer par mon Supabase » dans ce fournisseur.'); }
       if (!r.ok) throw new Error(prov.name + ' a répondu ' + r.status + ' : ' + (await r.text().catch(() => '')).slice(0, 160));
       j = await r.json();
     }

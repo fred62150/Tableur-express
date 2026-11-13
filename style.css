@@ -128,3 +128,13 @@ footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 8p
   :root { --surface: rgba(255,255,255,.94); --surface-2: rgba(245,247,252,.95); }
   :root[data-theme="dark"] { --surface: rgba(26,32,46,.96); --surface-2: rgba(36,44,62,.96); }
 }
+
+h3 { font: 600 14.5px/1.2 var(--font-display); margin: 18px 0 8px; }
+.lab { font-size: 13px; color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.prow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.pmain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pmain .meta { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.pmain .tag { margin-left: 8px; font-size: 12px; padding: 2px 9px; }
+.sted { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; padding: 12px; border: 1px solid var(--accent); border-radius: 14px; background: var(--surface-2); }
+button.danger { color: var(--danger); }

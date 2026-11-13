@@ -138,3 +138,8 @@ h3 { font: 600 14.5px/1.2 var(--font-display); margin: 18px 0 8px; }
 .pmain .tag { margin-left: 8px; font-size: 12px; padding: 2px 9px; }
 .sted { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; padding: 12px; border: 1px solid var(--accent); border-radius: 14px; background: var(--surface-2); }
 button.danger { color: var(--danger); }
+
+.code { white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.45 ui-monospace, Menlo, monospace; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; max-height: 260px; overflow: auto; }
+#resPreview { font-size: 12.5px; }
+#resBox .tablewrap { max-height: 220px; margin: 8px 0; }
+.row > input.grow { flex: 1; min-width: 180px; }

@@ -71,14 +71,24 @@ assert.strictEqual(dup.rows[0][0], 'a@x.fr ');
 
 console.log('Tous les tests passent');
 
-// ---- Plan IA ----
+// ---- IA ----
 global.Ops = Ops;
-const Plan = require('../plan.js');
-const pt = Ops.buildTable([['Nom', 'Date', 'Mail'], ['  Jean ', '3/2/24', 'A@x.fr'], ['jean', '03/02/2024', 'a@x.fr']], 0);
-const pr = Plan.parse('```json\n{"etapes":[{"op":"doublons","colonnes":["mail"],"ignorer_casse":true},{"op":"supprimer_tout"},{"op":"espaces","colonnes":["Inconnue"]},{"op":"casse","mode":"???"}]}\n```', pt);
-assert.strictEqual(pr.steps.length, 1);          // seule l'étape valide est gardée
-assert.strictEqual(pr.warnings.length, 4);       // les autres sont signalées, jamais élargies à toutes les colonnes
-assert.strictEqual(Plan.apply(pt, pr.steps).table.rows.length, 1);
-assert.strictEqual(Plan.parse('blabla', pt).steps.length, 0);
-assert.ok(!Plan.buildPrompt(pt, 'x', 0).includes('Exemples de lignes'));
-console.log('Tests du plan IA : OK');
+const AI = require('../ai.js');
+const at = Ops.buildTable([['Nom', 'Date', 'Montant'], ['Jean', '3/2/24', 12], ['', '', 5]], 0);
+const cols = AI.describeColumns(Ops.normalizeDates(at, []).table, 2);
+assert.strictEqual(cols[1].type, 'date');
+assert.strictEqual(cols[2].type, 'nombre');
+assert.strictEqual(cols[0].vides, 1);
+assert.deepStrictEqual(cols[0].exemples, ['Jean']);
+assert.ok(!('exemples' in AI.describeColumns(at, 0)[0]));
+const p1 = AI.parse('{"explication":"Tri","code":"function transform(t){return t}"}');
+assert.strictEqual(p1.code, 'function transform(t){return t}');
+const p2 = AI.parse('Voici :\n```js\nfunction transform(t){return t}\n```');
+assert.ok(p2.code.startsWith('function transform'));
+assert.strictEqual(AI.parse('Impossible.').code, '');
+const nr = AI.normalizeResult({ headers: ['a', '', 'a'], rows: [[1], [1, 2, 3, 4]] });
+assert.deepStrictEqual(nr.headers, ['a', 'Colonne 2', 'a (2)']);
+assert.deepStrictEqual(nr.rows, [[1, '', ''], [1, 2, 3]]);
+assert.ok(AI.buildPrompt(at, 'trie', 0).includes('Demande : trie'));
+assert.ok(AI.buildFixPrompt(at, 'trie', 'CODE', 'ERR', 0).includes('Erreur : ERR'));
+console.log('Tests IA : OK');

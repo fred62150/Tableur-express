@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const state = {
     fileName: '', workbook: null, raw: null, headerRow: 0,
-    base: null, table: null, history: [], log: [], selected: new Set(), plan: null,
+    base: null, table: null, history: [], log: [], selected: new Set(), ai: null,
   };
   const PREVIEW_ROWS = 100;
 
@@ -423,47 +423,73 @@
       : (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
   }
 
-  /* ---------- Plan proposé par l'IA ---------- */
+  /* ---------- Transformation proposée par l'IA ---------- */
   function clearPlan() {
-    state.plan = null;
-    const box = $('planBox');
+    state.ai = null;
+    const box = $('resBox');
     if (box) box.classList.add('hidden');
   }
 
-  $('aiGo').addEventListener('click', async () => {
-    const request = $('aiPrompt').value.trim();
+  function showResult(request, r, result) {
+    state.ai = { request, code: r.code, result, base: state.table };
+    $('resExplain').textContent = r.explication || 'Transformation prête.';
+    $('resSummary').textContent = 'Résultat : ' + AI.summarize(state.table, result);
+    $('resPreview').innerHTML = '<tr>' + result.headers.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr>'
+      + result.rows.slice(0, 8).map((row) => '<tr>' + row.map((c) => `<td class="${typeof c === 'number' ? 'num-c' : ''}">${esc(Ops.cellToText(c))}</td>`).join('') + '</tr>').join('');
+    $('resCode').textContent = r.code;
+    $('resFeedback').value = '';
+    $('resBox').classList.remove('hidden');
+  }
+
+  async function generate(request, retry) {
     const prov = curProv();
     if (!request) { aiMsg('Écrivez d\'abord ce que vous voulez faire.', true); return; }
     if (!prov || !prov.key) { aiMsg('Aucun fournisseur d\'IA configuré : ouvrez « Réglages de l\'IA » en haut de page.', true); return; }
     const model = $('aiFull').checked ? (prov.full || prov.light) : (prov.light || prov.full);
-    const btn = $('aiGo');
-    btn.disabled = true;
+    const sampleN = $('aiSample').checked ? 3 : 0;
+    const t = state.table;
+    $('aiGo').disabled = true;
+    $('resRetry').disabled = true;
     aiMsg(`Demande envoyée à ${prov.name}…`);
-    clearPlan();
     try {
-      const txt = await callAI(prov, model, Plan.buildPrompt(state.table, request, $('aiSample').checked ? 3 : 0));
-      const plan = Plan.parse(txt, state.table);
-      state.plan = plan;
-      $('planList').innerHTML = plan.steps.map((s) => `<li>${esc(s.label)}</li>`).join('')
-        + plan.warnings.map((w) => `<li class="warn">${esc(w)}</li>`).join('');
-      $('planRemark').textContent = plan.remark ? 'Remarque du modèle : ' + plan.remark : '';
-      $('planApply').disabled = !plan.steps.length;
-      $('planBox').classList.remove('hidden');
-      aiMsg(plan.steps.length ? 'Vérifiez le plan puis appliquez-le. Vous pourrez l\'annuler.' : 'Aucune étape exploitable dans la réponse.', !plan.steps.length);
+      const prompt = retry
+        ? AI.buildRetryPrompt(t, request, retry.code, retry.feedback, sampleN)
+        : AI.buildPrompt(t, request, sampleN);
+      let r = AI.parse(await callAI(prov, model, prompt));
+      if (!r.code) { clearPlan(); aiMsg(r.explication || 'Le modèle n\'a pas pu faire cette transformation.', true); return; }
+      let result;
+      try {
+        result = await Sandbox.run(r.code, t);
+      } catch (e) {
+        aiMsg('Le code proposé a échoué (' + e.message + '). Correction automatique…');
+        r = AI.parse(await callAI(prov, model, AI.buildFixPrompt(t, request, r.code, e.message, sampleN)));
+        if (!r.code) throw new Error(r.explication || 'Correction impossible.');
+        result = await Sandbox.run(r.code, t);
+      }
+      showResult(request, r, AI.normalizeResult(result));
+      aiMsg('Vérifiez l\'aperçu ci-dessous, puis appliquez. Vous pourrez annuler.');
     } catch (e) {
       aiMsg(e.message || 'Erreur lors de l\'appel à l\'IA.', true);
     } finally {
-      btn.disabled = false;
+      $('aiGo').disabled = false;
+      $('resRetry').disabled = false;
     }
-  });
+  }
 
-  $('planApply').addEventListener('click', () => {
-    const plan = state.plan;
-    if (!plan || !plan.steps.length) return;
-    run(() => Plan.apply(state.table, plan.steps));
-    aiMsg('Plan appliqué.');
+  $('aiGo').addEventListener('click', () => { clearPlan(); generate($('aiPrompt').value.trim(), null); });
+  $('resRetry').addEventListener('click', () => {
+    const cur = state.ai;
+    const fb = $('resFeedback').value.trim();
+    if (!cur || !fb) { aiMsg('Précisez ce qu\'il faut corriger.', true); return; }
+    generate(cur.request, { code: cur.code, feedback: fb });
   });
-  $('planDrop').addEventListener('click', () => { clearPlan(); aiMsg(''); });
+  $('resApply').addEventListener('click', () => {
+    const cur = state.ai;
+    if (!cur) return;
+    run(() => ({ table: cur.result, log: 'IA — ' + ($('resExplain').textContent || 'transformation') }));
+    aiMsg('Transformation appliquée.');
+  });
+  $('resDrop').addEventListener('click', () => { clearPlan(); aiMsg(''); });
 
   renderSettings();
 })();

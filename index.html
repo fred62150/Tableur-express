@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1.2">
+<link rel="stylesheet" href="style.css?v=1.3">
 <script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
@@ -22,7 +22,7 @@
 <main>
   <details class="card" id="settings">
     <summary>Réglages de l'IA <span class="muted small" id="aiStatus"></span></summary>
-    <p class="note" style="margin-top:0">Pour écrire vos demandes en langage naturel. Seuls les noms de colonnes et, si vous le permettez, quelques lignes d'exemple sont envoyés au modèle, jamais le fichier entier.</p>
+    <p class="note" style="margin-top:0">Pour écrire vos demandes en langage naturel. Seuls les noms de colonnes et, si vous le permettez, quelques exemples sont envoyés au modèle, jamais le fichier entier.</p>
     <div class="row"><button id="importPR">Reprendre les réglages de Prise rapide</button></div>
     <p class="note" id="importNote">Fonctionne si Prise rapide est configurée dans ce même navigateur. Les clés restent dans le navigateur, elles ne passent jamais par le chat.</p>
 
@@ -87,18 +87,21 @@
       <h2>3. Décrire ce que vous voulez</h2>
       <textarea id="aiPrompt" placeholder="Ex. : supprime les doublons sur l'e-mail, mets les dates en JJ/MM/AAAA et les noms en majuscules"></textarea>
       <div class="row">
-        <button class="primary" id="aiGo">Proposer un plan</button>
+        <button class="primary" id="aiGo">Proposer une transformation</button>
         <label class="inline"><input type="checkbox" id="aiSample" checked> envoyer aussi 3 lignes d'exemple</label>
       </div>
       <div class="row">
         <label class="fld hidden" id="provWrap">Fournisseur <select id="provSel"></select></label>
-        <label class="inline"><input type="checkbox" id="aiFull"> modèle complet (sinon léger)</label>
+        <label class="inline"><input type="checkbox" id="aiFull" checked> modèle complet (conseillé pour les transformations)</label>
       </div>
       <p class="msg" id="aiMsg"></p>
-      <div id="planBox" class="hidden">
-        <ol class="plan" id="planList"></ol>
-        <p class="note" id="planRemark"></p>
-        <div class="row"><button class="primary" id="planApply">Appliquer le plan</button><button id="planDrop">Ignorer</button></div>
+      <div id="resBox" class="hidden">
+        <p id="resExplain"></p>
+        <p class="note" id="resSummary"></p>
+        <div class="tablewrap"><table id="resPreview"></table></div>
+        <details><summary class="small muted">Voir le code</summary><pre id="resCode" class="code"></pre></details>
+        <div class="row"><button class="primary" id="resApply">Appliquer au tableau</button><button id="resDrop">Ignorer</button></div>
+        <div class="row"><input type="text" id="resFeedback" class="grow" placeholder="Pas tout à fait ? Précisez ce qu'il faut corriger"><button id="resRetry">Réessayer</button></div>
       </div>
     </section>
 
@@ -137,12 +140,13 @@
   </div>
 </main>
 
-<footer>Version 1.2 · vos données restent dans votre navigateur</footer>
+<footer>Version 1.3 · vos données restent dans votre navigateur</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="ops.js?v=1.2"></script>
-<script src="plan.js?v=1.2"></script>
-<script src="app.js?v=1.2"></script>
+<script src="ops.js?v=1.3"></script>
+<script src="sandbox.js?v=1.3"></script>
+<script src="ai.js?v=1.3"></script>
+<script src="app.js?v=1.3"></script>
 </body>
 </html>

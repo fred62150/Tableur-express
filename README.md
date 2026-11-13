@@ -3,6 +3,13 @@
 Application web pour nettoyer des fichiers tableur (.xlsx, .xls, .csv) directement dans le navigateur.
 L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 
+## Version 1.3
+
+- Pilotage par prompt réécrit : l'IA écrit une vraie transformation (tri, filtres, colonnes calculées, regroupements, tableaux croisés…)
+- Exécution isolée : Worker dans une iframe sandbox sans accès réseau (CSP), arrêt au bout de 8 s
+- Aperçu du résultat avant application, correction automatique si le code échoue, bouton « Réessayer » avec précisions
+- Seuls les noms de colonnes, leur type et 3 exemples (désactivable) sont envoyés au modèle
+
 ## Version 1.2
 
 - Réglages de l'IA complets comme dans Prise rapide : fournisseurs (ajout par préréglage, modification, défaut, test, suppression), relais Supabase

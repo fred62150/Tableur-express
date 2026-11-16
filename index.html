@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1.6">
+<link rel="stylesheet" href="style.css?v=1.7">
 <script>(function(){var t='dark';try{var a=localStorage.getItem('te.theme')||localStorage.getItem('pr.theme');if(a){a=JSON.parse(a);if(a==='light'||a==='dark')t=a}}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
 </head>
 <body>
@@ -63,6 +63,41 @@
     </div>
     <div class="row"><button class="primary" id="sbLogin">Se connecter</button><button id="sbLogout" class="hidden">Se déconnecter</button></div>
   </details>
+
+  <section class="card" id="cmpCard">
+    <h2>Comparer plusieurs fichiers <span class="tag">nouveau</span></h2>
+    <p class="note" style="margin-top:0">Déposez 2 fichiers ou plus, décrivez la comparaison. L'IA propose la méthode (à partir des noms de colonnes), l'application la calcule sur toutes les lignes.</p>
+    <label class="drop" id="cmpDrop">
+      <input type="file" id="cmpFile" accept=".xlsx,.xlsm,.xls,.csv,.txt" multiple>
+      <strong>Déposez vos fichiers ici</strong>
+      <span>ou touchez pour les choisir · vous pouvez en ajouter plusieurs fois</span>
+    </label>
+    <div id="cmpList" class="stack"></div>
+    <p class="msg" id="cmpMsg"></p>
+    <div id="cmpWork" class="hidden">
+      <textarea id="cmpPrompt" placeholder="Ex. : quels agents de la liste 1 ne figurent ni dans la liste 2 ni dans la liste 3 ? Ou : repère les montants qui diffèrent entre les fichiers pour une même référence"></textarea>
+      <div class="row">
+        <button class="primary" id="cmpGo">Proposer une comparaison</button>
+        <label class="inline"><input type="checkbox" id="cmpSample" checked> envoyer aussi 3 lignes d'exemple par fichier</label>
+      </div>
+      <div class="row">
+        <label class="inline"><input type="checkbox" id="cmpFull" checked> modèle complet (conseillé)</label>
+        <button id="cmpAna">Plutôt : faire analyser les lignes par l'IA</button>
+      </div>
+      <p class="note">« Analyser les lignes » envoie le contenu des fichiers à l'IA (jusqu'à 200 lignes par fichier) : à réserver aux petits fichiers sans données sensibles. Le résultat est une réponse écrite, à vérifier.</p>
+      <div id="cmpAsk" class="row hidden"><input type="text" id="cmpAskAnswer" class="grow" placeholder="Votre réponse à la question de l'IA"><button class="primary" id="cmpAskGo">Répondre</button></div>
+      <details id="cmpRawBox" class="hidden"><summary class="small muted">Voir la réponse brute de l'IA</summary><pre id="cmpRaw" class="code"></pre></details>
+      <div id="cmpRes" class="hidden">
+        <p id="cmpExplain"></p>
+        <p class="note" id="cmpSummary"></p>
+        <div class="tablewrap"><table id="cmpPreview"></table></div>
+        <details><summary class="small muted">Voir le code</summary><pre id="cmpCode" class="code"></pre></details>
+        <div class="row"><button class="primary" id="cmpUse">Utiliser ce résultat (nettoyer, exporter)</button><button id="cmpDrop2">Ignorer</button></div>
+        <div class="row"><input type="text" id="cmpFeedback" class="grow" placeholder="Pas tout à fait ? Précisez ce qu'il faut corriger"><button id="cmpRetry">Réessayer</button></div>
+      </div>
+      <div id="cmpAnaBox" class="hidden"><h3>Analyse de l'IA</h3><pre id="cmpAnaText" class="code" style="white-space:pre-wrap"></pre><p class="note">Réponse d'une IA : vérifiez-la avant de l'utiliser.</p></div>
+    </div>
+  </section>
 
   <section class="card" id="importCard">
     <h2>1. Importer un fichier</h2>
@@ -167,13 +202,13 @@
   </div>
 </main>
 
-<footer>Version <span id="ver">1.6</span> · vos données restent dans votre navigateur</footer>
+<footer>Version <span id="ver">1.7</span> · vos données restent dans votre navigateur</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="ops.js?v=1.6"></script>
-<script src="sandbox.js?v=1.6"></script>
-<script src="ai.js?v=1.6"></script>
-<script src="app.js?v=1.6"></script>
+<script src="ops.js?v=1.7"></script>
+<script src="sandbox.js?v=1.7"></script>
+<script src="ai.js?v=1.7"></script>
+<script src="app.js?v=1.7"></script>
 </body>
 </html>

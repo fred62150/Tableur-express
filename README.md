@@ -3,6 +3,14 @@
 Application web pour nettoyer des fichiers tableur (.xlsx, .xls, .csv) directement dans le navigateur.
 L'original n'est jamais modifié et les données ne quittent pas l'ordinateur.
 
+## Version 1.7
+
+- Carte « Comparer plusieurs fichiers » : 2 fichiers ou plus (ajout en plusieurs fois, feuille et ligne d'en-tête réglables par fichier)
+- Demande libre en français : l'IA propose la méthode à partir des noms de colonnes (et 3 exemples, désactivable), le code s'exécute dans le bac à sable sur toutes les lignes ; aperçu, correction automatique, « Réessayer »
+- « Utiliser ce résultat » charge la comparaison dans le tableau pour nettoyer, faire un tableau croisé ou exporter
+- Option « faire analyser les lignes par l'IA » (200 lignes par fichier maximum, confirmation avant envoi, réponse à vérifier)
+- Lecture des réponses de l'IA en morceaux (raisonnement ignoré)
+
 ## Version 1.6
 
 - Bouton ↻ « Rafraîchir l'application » (vide le cache et recharge) et bannière « Nouvelle version disponible » (vérifie `version.json`)

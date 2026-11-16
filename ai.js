@@ -50,6 +50,37 @@ const AI = (() => {
     return `${RULES}\n${header(table, sampleN)}\nDemande initiale : ${request.trim()}\nCode proposé précédemment :\n${code}\nL'utilisateur n'est pas satisfait du résultat et précise : ${feedback.trim()}\nRenvoie le JSON complet avec un code corrigé.`;
   }
 
+  const CMP_RULES = [
+    'Tu compares plusieurs tableaux avec du JavaScript. Réponds en deux parties, rien d\'autre :',
+    '1) une ligne « Explication : » en français (1 à 2 phrases : quelle colonne sert de repère dans chaque fichier, quel type de comparaison) ;',
+    '2) le code dans UN SEUL bloc ```js contenant : function transform(files){ ... return {headers:[...], rows:[[...]]}; }',
+    'files est un tableau : files[0], files[1]… dans l\'ordre indiqué ; chacun = {name, headers, rows}. rows = lignes (tableaux de cellules, mêmes indices que headers). Une cellule est un texte, un nombre ou un objet Date.',
+    'Pas de réseau, pas de DOM, pas de bibliothèque. Ne modifie pas files : renvoie un nouvel objet {headers, rows}.',
+    'Pour rapprocher les lignes, normalise les valeurs repère : String(v).trim().toLowerCase() sans accents (normalize("NFD").replace(/[\\u0300-\\u036f]/g,"")), espaces multiples réduits. Si les noms peuvent être écrits dans un ordre différent (« Dupont Jean » / « Jean Dupont »), compare les mots triés.',
+    'Le résultat doit être lisible par un non-informaticien : une ligne par élément comparé, la valeur repère en première colonne, une colonne « Statut » (ex. « Dans A seulement », « Dans A et B », « Valeur différente »), et les valeurs utiles de chaque fichier concerné dans des colonnes nommées d\'après le fichier. Ajoute les lignes de tous les cas demandés. Ne perds aucune ligne.',
+    'Les nombres au format français peuvent être des textes ("1 250,50") : convertis-les avant de comparer.',
+    'Si la demande est ambiguë ou si tu ne sais pas quelle colonne sert de repère, pose UNE seule question courte qui commence par « Question : » et n\'écris pas de code. Si la demande est impossible, n\'écris que l\'explication, sans bloc de code.'
+  ].join('\n');
+
+  const cmpHeader = (files, sampleN) => files.map((f, i) =>
+    `files[${i}] « ${f.name} » : ${f.table.rows.length} lignes. Colonnes : ${JSON.stringify(describeColumns(f.table, sampleN))}`).join('\n');
+
+  function buildComparePrompt(files, request, sampleN) {
+    return `${CMP_RULES}\n${cmpHeader(files, sampleN)}\nDemande : ${request.trim()}`;
+  }
+  function buildCompareFixPrompt(files, request, code, error, sampleN) {
+    return `${CMP_RULES}\n${cmpHeader(files, sampleN)}\nDemande : ${request.trim()}\nTon code précédent a échoué.\nCode :\n${code}\nErreur : ${error}\nCorrige-le et renvoie la réponse complète.`;
+  }
+  function buildCompareRetryPrompt(files, request, code, feedback, sampleN) {
+    return `${CMP_RULES}\n${cmpHeader(files, sampleN)}\nDemande initiale : ${request.trim()}\nCode proposé précédemment :\n${code}\nL'utilisateur n'est pas satisfait du résultat et précise : ${feedback.trim()}\nRenvoie la réponse complète avec un code corrigé.`;
+  }
+  /* Analyse directe par l'IA (petits fichiers) : les lignes sont envoyées, sur demande explicite. */
+  function buildAnalysisPrompt(files, request, csvs) {
+    return 'Tu analyses des tableaux fournis ci-dessous pour répondre à la demande. Réponds en français, de façon concise et précise : cite à chaque fois la valeur repère concernée. N\'invente rien : si une information manque, dis-le. Termine par une ligne « À vérifier : » listant les points dont tu n\'es pas certain.\n'
+      + files.map((f, i) => `\n=== Fichier ${i + 1} : ${f.name} ===\n${csvs[i]}`).join('\n')
+      + `\n\nDemande : ${request.trim()}`;
+  }
+
   function extractJSON(txt) {
     const s = String(txt);
     const i = s.indexOf('{');
@@ -90,7 +121,7 @@ const AI = (() => {
 
   const summarize = (a, b) => `${a.rows.length} → ${b.rows.length} lignes · ${a.headers.length} → ${b.headers.length} colonnes`;
 
-  return { describeColumns, buildPrompt, buildFixPrompt, buildRetryPrompt, parse, normalizeResult, summarize };
+  return { describeColumns, buildPrompt, buildFixPrompt, buildRetryPrompt, buildComparePrompt, buildCompareFixPrompt, buildCompareRetryPrompt, buildAnalysisPrompt, parse, normalizeResult, summarize };
 })();
 
 if (typeof module !== 'undefined') module.exports = AI;

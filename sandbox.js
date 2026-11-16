@@ -7,9 +7,11 @@ const Sandbox = (() => {
   const WORKER_SRC = `
 self.onmessage = (e) => {
   try {
-    const { code, table } = e.data;
+    const { code, table, files } = e.data;
     const fn = new Function('table', code + '\\n;return (typeof transform === "function") ? transform(table) : undefined;');
-    const out = fn({ headers: table.headers.slice(), rows: table.rows.map((r) => r.slice()) });
+    const arg = files ? files.map((f) => ({ name: f.name, headers: f.headers.slice(), rows: f.rows.map((r) => r.slice()) }))
+      : { headers: table.headers.slice(), rows: table.rows.map((r) => r.slice()) };
+    const out = fn(arg);
     if (!out || !Array.isArray(out.headers) || !Array.isArray(out.rows)) throw new Error('La fonction doit renvoyer { headers, rows }.');
     const cell = (v) => (v instanceof Date || typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string') ? v : (v == null ? '' : String(v));
     const rows = out.rows.map((r) => { if (!Array.isArray(r)) throw new Error('Chaque ligne doit être un tableau.'); return r.map(cell); });
@@ -26,7 +28,7 @@ self.onmessage = (e) => {
     + 'parent.postMessage({ready:true},"*");'
     + '<\/script>';
 
-  function run(code, table, timeout = 8000) {
+  function run(code, table, timeout = 8000, files = null) {
     return new Promise((resolve, reject) => {
       const frame = document.createElement('iframe');
       frame.setAttribute('sandbox', 'allow-scripts');
@@ -44,7 +46,7 @@ self.onmessage = (e) => {
       const onMsg = (e) => {
         if (e.source !== frame.contentWindow) return;
         const d = e.data || {};
-        if (d.ready) frame.contentWindow.postMessage({ code, table: { headers: table.headers, rows: table.rows } }, '*');
+        if (d.ready) frame.contentWindow.postMessage({ code, files, table: table ? { headers: table.headers, rows: table.rows } : null }, '*');
         else if (d.ok === true) finish(resolve, d.table);
         else if (d.ok === false) finish(reject, new Error(d.error || 'Erreur dans le code.'));
       };

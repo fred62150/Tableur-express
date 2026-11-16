@@ -419,9 +419,15 @@
       if (!r.ok) throw new Error(prov.name + ' a répondu ' + r.status + ' : ' + (await r.text().catch(() => '')).slice(0, 160));
       j = await r.json();
     }
+    const chunk = (c) => {
+      if (c == null) return '';
+      if (typeof c === 'string') return c;
+      if (Array.isArray(c)) return c.map((x) => (typeof x === 'string' ? x : (!x || /thinking|reasoning/.test(x.type || '') ? '' : (typeof x.text === 'string' ? x.text : '')))).join('');
+      return typeof c.text === 'string' ? c.text : '';
+    };
     return prov.type === 'anthropic'
-      ? (j.content && j.content[0] && j.content[0].text) || ''
-      : (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+      ? chunk(j.content)
+      : chunk(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content);
   }
 
 
@@ -576,8 +582,189 @@
   $('resDrop').addEventListener('click', () => { clearPlan(); aiMsg(''); });
 
 
+  /* ---------- Comparer plusieurs fichiers ---------- */
+  const cmp = { files: [], res: null, req: '' };
+  const cmsg = (text, err) => { const m = $('cmpMsg'); m.textContent = text || ''; m.className = 'msg' + (err ? ' err' : ''); };
+
+  function cmpBuild(f) { f.table = Ops.buildTable(f.raw, f.headerRow); }
+
+  async function cmpAdd(fileList) {
+    const list = Array.from(fileList || []);
+    if (!list.length) return;
+    cmsg('Lecture des fichiers…');
+    for (const file of list) {
+      try {
+        const buf = await file.arrayBuffer();
+        const f = { name: file.name, wb: null, sheet: '', raw: null, headerRow: 0, table: null };
+        if (/\.(csv|txt)$/i.test(file.name)) f.raw = Ops.parseCSV(Ops.decodeBuffer(buf));
+        else {
+          if (typeof XLSX === 'undefined') throw new Error('bibliothèque Excel non chargée (connexion ?). Les .csv restent utilisables.');
+          f.wb = XLSX.read(buf, { type: 'array', cellDates: true });
+          f.sheet = f.wb.SheetNames[0];
+          const aoa = XLSX.utils.sheet_to_json(f.wb.Sheets[f.sheet], { header: 1, raw: true, defval: '', blankrows: true });
+          f.raw = aoa.map((r) => r.map((c) => (c instanceof Date ? Ops.cleanExcelDate(c) : c)));
+        }
+        if (!f.raw.length) throw new Error('fichier vide.');
+        f.headerRow = Ops.guessHeaderRow(f.raw);
+        cmpBuild(f);
+        cmp.files.push(f);
+      } catch (e) { cmsg('Impossible de lire « ' + file.name + ' » : ' + e.message, true); return cmpRender(); }
+    }
+    cmsg('');
+    cmpClear();
+    cmpRender();
+  }
+
+  function cmpClear() { cmp.res = null; $('cmpRes').classList.add('hidden'); $('cmpAnaBox').classList.add('hidden'); $('cmpAsk').classList.add('hidden'); $('cmpRawBox').classList.add('hidden'); }
+
+  const cmpLabel = (i) => String.fromCharCode(65 + (i % 26)) + (i >= 26 ? Math.floor(i / 26) : '');
+
+  function cmpRender() {
+    $('cmpList').innerHTML = cmp.files.map((f, i) => {
+      const sheets = f.wb ? `<label>Feuille <select data-ci="${i}" data-cf="sheet">${f.wb.SheetNames.map((n) => `<option${n === f.sheet ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : '';
+      return `<div class="op"><div><b>Fichier ${cmpLabel(i)} : ${esc(f.name)}</b><span>${f.table.rows.length.toLocaleString('fr-FR')} lignes · ${f.table.headers.length} colonnes · ${esc(f.table.headers.slice(0, 6).join(', '))}${f.table.headers.length > 6 ? '…' : ''}</span>
+        <span class="row">${sheets}<label>Ligne d'en-tête <input type="number" min="1" max="${f.raw.length}" value="${f.headerRow + 1}" class="num" data-ci="${i}" data-cf="hdr"></label></span></div>
+        <button data-ci="${i}" data-cf="del">Retirer</button></div>`;
+    }).join('');
+    $('cmpWork').classList.toggle('hidden', cmp.files.length < 2);
+    if (cmp.files.length === 1) cmsg('Ajoutez au moins un deuxième fichier pour comparer.');
+  }
+
+  $('cmpFile').addEventListener('change', (e) => { cmpAdd(e.target.files); e.target.value = ''; });
+  const cdrop = $('cmpDrop');
+  ['dragenter', 'dragover'].forEach((ev) => cdrop.addEventListener(ev, (e) => { e.preventDefault(); cdrop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => cdrop.addEventListener(ev, (e) => { e.preventDefault(); cdrop.classList.remove('over'); }));
+  cdrop.addEventListener('drop', (e) => cmpAdd(e.dataTransfer.files));
+
+  $('cmpList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cf="del"]');
+    if (!b) return;
+    cmp.files.splice(+b.dataset.ci, 1); cmpClear(); cmsg(''); cmpRender();
+  });
+  $('cmpList').addEventListener('change', (e) => {
+    const t = e.target, f = cmp.files[+t.dataset.ci];
+    if (!f) return;
+    if (t.dataset.cf === 'sheet') {
+      f.sheet = t.value;
+      const aoa = XLSX.utils.sheet_to_json(f.wb.Sheets[f.sheet], { header: 1, raw: true, defval: '', blankrows: true });
+      f.raw = aoa.map((r) => r.map((c) => (c instanceof Date ? Ops.cleanExcelDate(c) : c)));
+      f.headerRow = Ops.guessHeaderRow(f.raw);
+    } else if (t.dataset.cf === 'hdr') {
+      f.headerRow = Math.max(1, Math.min(f.raw.length, +t.value || 1)) - 1;
+    } else return;
+    cmpBuild(f); cmpClear(); cmpRender();
+  });
+
+  const cfiles = () => cmp.files.map((f, i) => ({ name: 'Fichier ' + cmpLabel(i) + ' (' + f.name + ')', table: f.table }));
+  const cdata = () => cfiles().map((f) => ({ name: f.name, headers: f.table.headers, rows: f.table.rows }));
+
+  function cmpShow(request, r, result) {
+    cmp.res = { request, code: r.code, result };
+    $('cmpExplain').textContent = r.explication || 'Comparaison prête.';
+    $('cmpSummary').textContent = 'Résultat : ' + result.rows.length.toLocaleString('fr-FR') + ' lignes · ' + result.headers.length + ' colonnes';
+    $('cmpPreview').innerHTML = '<tr>' + result.headers.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr>'
+      + result.rows.slice(0, 20).map((row) => '<tr>' + row.map((c) => `<td class="${typeof c === 'number' ? 'num-c' : ''}">${esc(Ops.cellToText(c))}</td>`).join('') + '</tr>').join('');
+    $('cmpCode').textContent = r.code;
+    $('cmpFeedback').value = '';
+    $('cmpRes').classList.remove('hidden');
+  }
+
+  async function cmpGenerate(request, retry) {
+    const prov = curProv();
+    if (!request) { cmsg('Écrivez d\'abord la comparaison voulue.', true); return; }
+    if (!prov || !prov.key) { cmsg('Aucun fournisseur d\'IA configuré : ouvrez « Réglages de l\'IA » en haut de page.', true); return; }
+    const model = $('cmpFull').checked ? (prov.full || prov.light) : (prov.light || prov.full);
+    const sampleN = $('cmpSample').checked ? 3 : 0;
+    const files = cfiles(), data = cdata();
+    $('cmpGo').disabled = true; $('cmpRetry').disabled = true;
+    $('cmpAnaBox').classList.add('hidden'); $('cmpAsk').classList.add('hidden'); $('cmpRawBox').classList.add('hidden');
+    const t0 = Date.now();
+    const tick = setInterval(() => cmsg(`Demande envoyée à ${prov.name}… ${Math.round((Date.now() - t0) / 1000)} s`), 1000);
+    cmsg(`Demande envoyée à ${prov.name}…`);
+    try {
+      const prompt = retry ? AI.buildCompareRetryPrompt(files, request, retry.code, retry.feedback, sampleN) : AI.buildComparePrompt(files, request, sampleN);
+      const reply = await callAI(prov, model, prompt);
+      $('cmpRaw').textContent = reply || '(réponse vide)';
+      let r = AI.parse(reply);
+      if (!r.code) {
+        $('cmpRes').classList.add('hidden');
+        if (/^\s*\**\s*question/i.test(r.explication)) {
+          cmp.req = request;
+          cmsg('L\'IA a besoin d\'une précision : ' + r.explication.replace(/^\s*\**\s*question\s*:?\**\s*/i, ''));
+          $('cmpAsk').classList.remove('hidden'); $('cmpAskAnswer').value = ''; $('cmpAskAnswer').focus();
+          return;
+        }
+        cmsg(r.explication || 'Le modèle n\'a pas renvoyé de comparaison exploitable.', true);
+        $('cmpRawBox').classList.remove('hidden');
+        return;
+      }
+      let result;
+      try { result = await Sandbox.run(r.code, null, 30000, data); }
+      catch (e) {
+        cmsg('Le code proposé a échoué (' + e.message + '). Correction automatique…');
+        const reply2 = await callAI(prov, model, AI.buildCompareFixPrompt(files, request, r.code, e.message, sampleN));
+        $('cmpRaw').textContent = reply2 || '(réponse vide)';
+        r = AI.parse(reply2);
+        if (!r.code) { $('cmpRawBox').classList.remove('hidden'); throw new Error('Correction impossible : ' + (r.explication || 'réponse vide.')); }
+        result = await Sandbox.run(r.code, null, 30000, data);
+      }
+      cmpShow(request, r, AI.normalizeResult(result));
+      cmsg('Vérifiez l\'aperçu (20 premières lignes), puis utilisez le résultat.');
+    } catch (e) { cmsg(e.message || 'Erreur lors de l\'appel à l\'IA.', true); }
+    finally { clearInterval(tick); $('cmpGo').disabled = false; $('cmpRetry').disabled = false; }
+  }
+
+  $('cmpGo').addEventListener('click', () => { cmpClear(); cmpGenerate($('cmpPrompt').value.trim(), null); });
+  $('cmpAskGo').addEventListener('click', () => {
+    const ans = $('cmpAskAnswer').value.trim();
+    if (ans && cmp.req) cmpGenerate(cmp.req + '\nPrécision : ' + ans, null);
+  });
+  $('cmpRetry').addEventListener('click', () => {
+    const fb = $('cmpFeedback').value.trim();
+    if (!cmp.res || !fb) { cmsg('Précisez ce qu\'il faut corriger.', true); return; }
+    cmpGenerate(cmp.res.request, { code: cmp.res.code, feedback: fb });
+  });
+  $('cmpDrop2').addEventListener('click', () => { cmpClear(); cmsg(''); });
+  $('cmpUse').addEventListener('click', () => {
+    if (!cmp.res) return;
+    const t = cmp.res.result;
+    state.fileName = 'comparaison'; state.workbook = null;
+    state.raw = [t.headers, ...t.rows];
+    fillSheets(null);
+    $('fileName').textContent = 'Résultat de la comparaison';
+    $('outName').value = 'comparaison';
+    $('fileInfo').classList.remove('hidden'); $('work').classList.remove('hidden');
+    resetFromRaw(true);
+    state.headerRow = 0; $('headerRow').value = 1; resetFromRaw(false);
+    say('Résultat de la comparaison chargé : vous pouvez le nettoyer, en faire un tableau croisé ou l\'exporter.');
+    $('work').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  $('cmpAna').addEventListener('click', async () => {
+    const prov = curProv(), request = $('cmpPrompt').value.trim();
+    if (!request) { cmsg('Écrivez d\'abord la question à poser.', true); return; }
+    if (!prov || !prov.key) { cmsg('Aucun fournisseur d\'IA configuré : ouvrez « Réglages de l\'IA » en haut de page.', true); return; }
+    const files = cfiles();
+    const csvs = files.map((f) => Ops.toCSV({ headers: f.table.headers, rows: f.table.rows.slice(0, 200) }));
+    const total = files.reduce((s, f) => s + Math.min(200, f.table.rows.length), 0);
+    const cut = files.some((f) => f.table.rows.length > 200);
+    if (csvs.join('').length > 90000) { cmsg('Les fichiers sont trop volumineux pour une analyse directe. Utilisez « Proposer une comparaison ».', true); return; }
+    if (!window.confirm(`Le contenu de ${files.length} fichiers (${total} lignes${cut ? ', limité à 200 lignes par fichier' : ''}) va être envoyé à ${prov.name}. Continuer ?`)) return;
+    const model = $('cmpFull').checked ? (prov.full || prov.light) : (prov.light || prov.full);
+    $('cmpAna').disabled = true; cmpClear();
+    const t0 = Date.now();
+    const tick = setInterval(() => cmsg(`Analyse en cours chez ${prov.name}… ${Math.round((Date.now() - t0) / 1000)} s`), 1000);
+    try {
+      const reply = await callAI(prov, model, AI.buildAnalysisPrompt(files, request, csvs));
+      $('cmpAnaText').textContent = (cut ? '(Attention : seules les 200 premières lignes de chaque fichier ont été analysées.)\n\n' : '') + (reply || '(réponse vide)');
+      $('cmpAnaBox').classList.remove('hidden'); cmsg('');
+    } catch (e) { cmsg(e.message || 'Erreur lors de l\'appel à l\'IA.', true); }
+    finally { clearInterval(tick); $('cmpAna').disabled = false; }
+  });
+
+
   /* ---------- Mise à jour de l'application ---------- */
-  const APP_VERSION = '1.6';
+  const APP_VERSION = '1.7';
   if (/[?&]r=/.test(location.search) && history.replaceState) history.replaceState(null, '', location.pathname);
 
   async function hardRefresh() {
